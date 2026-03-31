@@ -3,10 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ReClip — Free Media Downloader</title>
+  <title>Clipdown — Free Media Downloader</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
   <style>
     :root {
       --bg: #f4f1eb;
@@ -20,6 +21,18 @@
       --error: #c43d3d;
       --radius: 14px;
       --shimmer: linear-gradient(90deg, #ebe8e2 25%, #f0ede7 50%, #ebe8e2 75%);
+    }
+    :root[data-theme="dark"] {
+      --bg: #141413;
+      --fg: #ece9e1;
+      --accent: #ff7a45;
+      --accent-hover: #ff6a32;
+      --muted: #9d998b;
+      --card: #1d1c1a;
+      --card-border: #34322e;
+      --success: #39a764;
+      --error: #d85757;
+      --shimmer: linear-gradient(90deg, #262420 25%, #302d28 50%, #262420 75%);
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -46,6 +59,56 @@
       max-width: 620px;
       margin: 0 auto;
       padding: 60px 24px 80px;
+      position: relative;
+    }
+    .theme-wrap {
+      position: absolute;
+      top: 18px;
+      right: 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .theme-select {
+      border: 1.5px solid var(--card-border);
+      border-radius: 8px;
+      background: var(--card);
+      color: var(--fg);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem;
+      padding: 6px 8px;
+      outline: none;
+      cursor: pointer;
+    }
+    .top-links {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .social-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border: 1.5px solid var(--card-border);
+      border-radius: 8px;
+      color: var(--muted);
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .social-icon i {
+      font-size: 16px;
+      line-height: 1;
+    }
+    .social-icon:hover {
+      color: var(--fg);
+      border-color: var(--muted);
+      transform: translateY(-1px);
+    }
+    .stars-badge img {
+      display: block;
+      height: 20px;
     }
 
     .brand { margin-bottom: 48px; }
@@ -368,6 +431,10 @@
     @media (max-width: 500px) {
       .brand h1 { font-size: 3rem; }
       .page { padding: 40px 16px 60px; }
+      .theme-wrap {
+        top: 10px;
+        right: 16px;
+      }
       .card { flex-direction: column; gap: 10px; }
       .card-thumb {
         width: 100%;
@@ -382,8 +449,33 @@
 </head>
 <body>
   <div class="page">
+    <div class="theme-wrap">
+      <select id="themeSelect" class="theme-select" aria-label="Theme">
+        <option value="device">Device</option>
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
+      </select>
+      <div class="top-links">
+        <a
+          class="stars-badge"
+          href="https://github.com/rakibulism/clipdown"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Clipdown GitHub stars"
+        >
+          <img src="https://img.shields.io/github/stars/rakibulism/clipdown?style=social" alt="GitHub stars">
+        </a>
+        <a class="social-icon" href="https://github.com/rakibulism/clipdown" target="_blank" rel="noopener noreferrer" aria-label="Clipdown on GitHub">
+          <i class="ph ph-github-logo"></i>
+        </a>
+        <a class="social-icon" href="https://x.com/rakibulism" target="_blank" rel="noopener noreferrer" aria-label="rakibulism on X (Twitter)">
+          <i class="ph ph-x-logo"></i>
+        </a>
+      </div>
+    </div>
+
     <div class="brand">
-      <h1>Re<em>Clip</em></h1>
+      <h1>Clip<em>down</em></h1>
       <p>Free media downloader</p>
     </div>
 
@@ -410,6 +502,38 @@
   <script>
     let currentFormat = 'video';
     let cardData = [];
+    const THEME_KEY = 'clipdown-theme';
+    const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    function applyTheme(themeChoice) {
+      const root = document.documentElement;
+      if (themeChoice === 'dark') {
+        root.setAttribute('data-theme', 'dark');
+      } else if (themeChoice === 'light') {
+        root.setAttribute('data-theme', 'light');
+      } else {
+        root.setAttribute('data-theme', darkQuery.matches ? 'dark' : 'light');
+      }
+    }
+
+    function initTheme() {
+      const select = document.getElementById('themeSelect');
+      const saved = localStorage.getItem(THEME_KEY) || 'device';
+      select.value = saved;
+      applyTheme(saved);
+      select.addEventListener('change', e => {
+        const value = e.target.value;
+        localStorage.setItem(THEME_KEY, value);
+        applyTheme(value);
+      });
+      darkQuery.addEventListener('change', () => {
+        if ((localStorage.getItem(THEME_KEY) || 'device') === 'device') {
+          applyTheme('device');
+        }
+      });
+    }
+
+    initTheme();
 
     function setFormat(btn) {
       document.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));

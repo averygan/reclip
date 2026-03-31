@@ -44,6 +44,6 @@ PORT="${PORT:-8899}"
 export PORT
 
 echo ""
-echo "  ReClip is running at http://localhost:$PORT"
+echo "  Clipdown is running at http://localhost:$PORT"
 echo ""
 python3 app.py

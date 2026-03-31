@@ -1,4 +1,4 @@
-# ReClip
+# Clipdown
 
 A self-hosted, open-source video and audio downloader with a clean web UI. Paste links from YouTube, TikTok, Instagram, Twitter/X, and 1000+ other sites — download as MP4 or MP3.
 
@@ -7,7 +7,7 @@ A self-hosted, open-source video and audio downloader with a clean web UI. Paste
 
 https://github.com/user-attachments/assets/419d3e50-c933-444b-8cab-a9724986ba05
 
-![ReClip MP3 Mode](assets/preview-mp3.png)
+![Clipdown MP3 Mode](assets/preview-mp3.png)
 
 ## Features
 
@@ -23,8 +23,8 @@ https://github.com/user-attachments/assets/419d3e50-c933-444b-8cab-a9724986ba05
 
 ```bash
 brew install yt-dlp ffmpeg    # or apt install ffmpeg && pip install yt-dlp
-git clone https://github.com/averygan/reclip.git
-cd reclip
+git clone https://github.com/rakibulism/clipdown.git
+cd clipdown
 ./reclip.sh
 ```
 
@@ -33,8 +33,27 @@ Open **http://localhost:8899**.
 Or with Docker:
 
 ```bash
-docker build -t reclip . && docker run -p 8899:8899 reclip
+docker build -t clipdown . && docker run -p 8899:8899 clipdown
 ```
+
+If you see `No such file or directory: 'yt-dlp'`, install it system-wide (`brew install yt-dlp` or `pip install yt-dlp`) or set `YT_DLP_BIN` to the binary path.
+
+If YouTube returns `Sign in to confirm you’re not a bot`, provide cookies to yt-dlp:
+
+```bash
+# Option 1: exported Netscape cookies.txt
+export YTDLP_COOKIES_FILE=/absolute/path/to/cookies.txt
+
+# Option 2: read cookies from a local browser profile (yt-dlp syntax)
+export YTDLP_COOKIES_FROM_BROWSER=chrome
+```
+
+## Deployment Notes (Vercel / Serverless)
+
+- Clipdown runs best as a traditional long-running server (VM/container).
+- On serverless platforms, filesystem writes are usually restricted to `/tmp`.
+- Background in-memory jobs (`jobs = {}` + threads) are not durable across cold starts, so downloads can fail or disappear between requests.
+- If you deploy serverless anyway, set `DOWNLOAD_DIR=/tmp/clipdown-downloads` and expect reduced reliability for long downloads.
 
 ## Usage
 
