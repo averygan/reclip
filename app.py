@@ -24,6 +24,17 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 jobs = {}
 
 
+def build_ytdlp_flags():
+    flags = ["--no-playlist"]
+    cookies_file = os.environ.get("YTDLP_COOKIES_FILE", "").strip()
+    cookies_from_browser = os.environ.get("YTDLP_COOKIES_FROM_BROWSER", "").strip()
+    if cookies_file:
+        flags += ["--cookies", cookies_file]
+    elif cookies_from_browser:
+        flags += ["--cookies-from-browser", cookies_from_browser]
+    return flags
+
+
 def build_ytdlp_cmd(*args):
     override = os.environ.get("YT_DLP_BIN", "").strip()
     if override:
@@ -37,7 +48,7 @@ def run_download(job_id, url, format_choice, format_id):
     job = jobs[job_id]
     out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}.%(ext)s")
 
-    cmd = build_ytdlp_cmd("--no-playlist", "-o", out_template)
+    cmd = build_ytdlp_cmd(*build_ytdlp_flags(), "-o", out_template)
 
     if format_choice == "audio":
         cmd += ["-x", "--audio-format", "mp3"]
@@ -51,8 +62,14 @@ def run_download(job_id, url, format_choice, format_id):
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
         if result.returncode != 0:
+            last_error = result.stderr.strip().split("\n")[-1]
+            if "Sign in to confirm you’re not a bot" in result.stderr:
+                last_error = (
+                    "YouTube requires cookies for this video. "
+                    "Set YTDLP_COOKIES_FILE or YTDLP_COOKIES_FROM_BROWSER."
+                )
             job["status"] = "error"
-            job["error"] = result.stderr.strip().split("\n")[-1]
+            job["error"] = last_error
             return
 
         files = glob.glob(os.path.join(DOWNLOAD_DIR, f"{job_id}.*"))
@@ -108,11 +125,17 @@ def get_info():
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
-    cmd = build_ytdlp_cmd("--no-playlist", "-j", url)
+    cmd = build_ytdlp_cmd(*build_ytdlp_flags(), "-j", url)
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         if result.returncode != 0:
-            return jsonify({"error": result.stderr.strip().split("\n")[-1]}), 400
+            last_error = result.stderr.strip().split("\n")[-1]
+            if "Sign in to confirm you’re not a bot" in result.stderr:
+                last_error = (
+                    "YouTube requires cookies for this video. "
+                    "Set YTDLP_COOKIES_FILE or YTDLP_COOKIES_FROM_BROWSER."
+                )
+            return jsonify({"error": last_error}), 400
 
         info = json.loads(result.stdout)
 

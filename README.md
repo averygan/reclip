@@ -38,6 +38,16 @@ docker build -t clipdown . && docker run -p 8899:8899 clipdown
 
 If you see `No such file or directory: 'yt-dlp'`, install it system-wide (`brew install yt-dlp` or `pip install yt-dlp`) or set `YT_DLP_BIN` to the binary path.
 
+If YouTube returns `Sign in to confirm you’re not a bot`, provide cookies to yt-dlp:
+
+```bash
+# Option 1: exported Netscape cookies.txt
+export YTDLP_COOKIES_FILE=/absolute/path/to/cookies.txt
+
+# Option 2: read cookies from a local browser profile (yt-dlp syntax)
+export YTDLP_COOKIES_FROM_BROWSER=chrome
+```
+
 ## Deployment Notes (Vercel / Serverless)
 
 - Clipdown runs best as a traditional long-running server (VM/container).
