@@ -23,8 +23,8 @@ https://github.com/user-attachments/assets/419d3e50-c933-444b-8cab-a9724986ba05
 
 ```bash
 brew install yt-dlp ffmpeg    # or apt install ffmpeg && pip install yt-dlp
-git clone https://github.com/averygan/reclip.git
-cd reclip
+git clone https://github.com/rakibulism/clipdown.git
+cd clipdown
 ./reclip.sh
 ```
 
@@ -33,8 +33,10 @@ Open **http://localhost:8899**.
 Or with Docker:
 
 ```bash
-docker build -t reclip . && docker run -p 8899:8899 reclip
+docker build -t clipdown . && docker run -p 8899:8899 clipdown
 ```
+
+If you see `No such file or directory: 'yt-dlp'`, install it system-wide (`brew install yt-dlp` or `pip install yt-dlp`) or set `YT_DLP_BIN` to the binary path.
 
 ## Deployment Notes (Vercel / Serverless)
 
