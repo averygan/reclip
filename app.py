@@ -7,7 +7,16 @@ import threading
 from flask import Flask, request, jsonify, send_file, render_template
 
 app = Flask(__name__)
-DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
+# Vercel serverless functions (and many other serverless platforms) only allow
+# writes in /tmp. Keep local development behavior, but prefer /tmp in
+# serverless environments to avoid startup crashes.
+DEFAULT_DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
+DOWNLOAD_DIR = os.environ.get("DOWNLOAD_DIR")
+if not DOWNLOAD_DIR:
+    if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+        DOWNLOAD_DIR = "/tmp/reclip-downloads"
+    else:
+        DOWNLOAD_DIR = DEFAULT_DOWNLOAD_DIR
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 jobs = {}

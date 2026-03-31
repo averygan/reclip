@@ -36,6 +36,13 @@ Or with Docker:
 docker build -t reclip . && docker run -p 8899:8899 reclip
 ```
 
+## Deployment Notes (Vercel / Serverless)
+
+- ReClip runs best as a traditional long-running server (VM/container).
+- On serverless platforms, filesystem writes are usually restricted to `/tmp`.
+- Background in-memory jobs (`jobs = {}` + threads) are not durable across cold starts, so downloads can fail or disappear between requests.
+- If you deploy serverless anyway, set `DOWNLOAD_DIR=/tmp/reclip-downloads` and expect reduced reliability for long downloads.
+
 ## Usage
 
 1. Paste one or more video URLs into the input box
