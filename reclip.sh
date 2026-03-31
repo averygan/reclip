@@ -2,6 +2,12 @@
 set -e
 cd "$(dirname "$0")"
 
+cleanup() {
+    echo ""
+    echo "  ReClip stopped."
+}
+trap cleanup EXIT
+
 # Check prerequisites
 missing=""
 
@@ -34,11 +40,10 @@ fi
 if [ ! -d "venv" ]; then
     echo "Setting up virtual environment..."
     python3 -m venv venv
-    source venv/bin/activate
-    pip install -q flask yt-dlp
-else
-    source venv/bin/activate
 fi
+
+source venv/bin/activate
+pip install -q -r requirements.txt
 
 PORT="${PORT:-8899}"
 export PORT
