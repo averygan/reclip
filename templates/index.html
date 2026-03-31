@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ReClip — Free Media Downloader</title>
+  <title>{{ t('app.title') }}</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -384,30 +384,33 @@
   <div class="page">
     <div class="brand">
       <h1>Re<em>Clip</em></h1>
-      <p>Free media downloader</p>
+      <p>{{ t('app.tagline') }}</p>
     </div>
 
-    <textarea id="urls" placeholder="Paste one or more URLs..." rows="2"></textarea>
-    <p class="hint">Multiple links? Separate with spaces, commas, or newlines.</p>
+    <textarea id="urls" placeholder="{{ t('form.url.placeholder') }}" rows="2"></textarea>
+    <p class="hint">{{ t('form.url.hint') }}</p>
 
     <div class="controls">
       <div class="pill-group">
-        <button class="pill active" data-format="video" onclick="setFormat(this)">MP4</button>
-        <button class="pill" data-format="audio" onclick="setFormat(this)">MP3</button>
+        <button class="pill active" data-format="video" onclick="setFormat(this)">{{ t('form.format.mp4') }}</button>
+        <button class="pill" data-format="audio" onclick="setFormat(this)">{{ t('form.format.mp3') }}</button>
       </div>
-      <button class="fetch-btn" id="goBtn" onclick="go()">Fetch</button>
+      <button class="fetch-btn" id="goBtn" onclick="go()">{{ t('form.submit') }}</button>
     </div>
 
     <div id="cards" class="cards"></div>
 
     <div class="footer">
-      YouTube &middot; TikTok &middot; Instagram &middot; Twitter/X &middot; Reddit &middot; Facebook<br>
-      Vimeo &middot; Twitch &middot; Dailymotion &middot; SoundCloud &middot; Loom &middot; Streamable<br>
-      Pinterest &middot; Tumblr &middot; Threads &middot; LinkedIn &middot; 1000+ more
+      {{ t('sites.line1') }}<br>
+      {{ t('sites.line2') }}<br>
+      {{ t('sites.line3') }}
     </div>
   </div>
 
   <script>
+    // Translation strings injected by the server — all UI text lives here.
+    const i18n = {{ strings | tojson }};
+
     let currentFormat = 'video';
     let cardData = [];
 
@@ -435,15 +438,15 @@
     }
 
     function friendlyError(err) {
-      if (err.includes('Unsupported URL')) return 'This URL is not supported';
-      if (err.includes('Video unavailable')) return 'Video is unavailable or private';
-      if (err.includes('Private video')) return 'This video is private';
-      if (err.includes('HTTP Error 403')) return 'Access denied by the platform';
-      if (err.includes('HTTP Error 404')) return 'Video not found';
-      if (err.includes('copyright')) return 'Video blocked due to copyright';
-      if (err.includes('geo')) return 'Video not available in your region';
-      if (err.includes('timed out') || err.includes('Timed out')) return 'Request timed out — try again';
-      if (err.includes('network') || err.includes('Network')) return 'Network error — check your connection';
+      if (err.includes('Unsupported URL')) return i18n['error.unsupported_url'];
+      if (err.includes('Video unavailable')) return i18n['error.video_unavailable'];
+      if (err.includes('Private video')) return i18n['error.private_video'];
+      if (err.includes('HTTP Error 403')) return i18n['error.forbidden'];
+      if (err.includes('HTTP Error 404')) return i18n['error.not_found'];
+      if (err.includes('copyright')) return i18n['error.copyright'];
+      if (err.includes('geo')) return i18n['error.geo_blocked'];
+      if (err.includes('timed out') || err.includes('Timed out')) return i18n['error.timeout'];
+      if (err.includes('network') || err.includes('Network')) return i18n['error.network'];
       return err.length > 80 ? err.slice(0, 80) + '...' : err;
     }
 
@@ -458,7 +461,7 @@
       const btn = document.getElementById('goBtn');
       const container = document.getElementById('cards');
       btn.disabled = true;
-      btn.textContent = 'Loading...';
+      btn.textContent = i18n['form.submit.loading'];
       container.innerHTML = '';
       cardData = [];
 
@@ -500,7 +503,7 @@
       }
 
       btn.disabled = false;
-      btn.textContent = 'Fetch';
+      btn.textContent = i18n['form.submit'];
     }
 
     function renderCard(idx) {
@@ -536,7 +539,7 @@
             </div>
           </div>
           <div class="card-body">
-            <div class="card-title" style="color:var(--error)">Could not fetch video</div>
+            <div class="card-title" style="color:var(--error)">${esc(i18n['card.fetch_error'])}</div>
             <div class="card-error-msg">${esc(friendlyError(c.error || ''))}</div>
             <div class="card-error-url">${esc(c.url)}</div>
           </div>
@@ -566,21 +569,21 @@
 
       let actionHtml = '';
       if (c.status === 'ready') {
-        actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">Download</button>${qualityChips}`;
+        actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">${esc(i18n['card.download'])}</button>${qualityChips}`;
       } else if (c.status === 'downloading') {
-        actionHtml = `<span class="card-status downloading"><span class="spin"></span> Downloading...</span>`;
+        actionHtml = `<span class="card-status downloading"><span class="spin"></span> ${esc(i18n['card.download.in_progress'])}</span>`;
       } else if (c.status === 'done') {
-        actionHtml = `<button class="card-dl-btn done" onclick="saveCard(${idx})">Save</button>
+        actionHtml = `<button class="card-dl-btn done" onclick="saveCard(${idx})">${esc(i18n['card.save'])}</button>
           <span class="card-status done">${esc(c.filename || '')}</span>`;
       } else if (c.status === 'error') {
-        actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">Retry</button>
-          <span class="card-status error">${esc(friendlyError(c.error || 'Download failed'))}</span>`;
+        actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">${esc(i18n['card.retry'])}</button>
+          <span class="card-status error">${esc(friendlyError(c.error || i18n['error.download_failed']))}</span>`;
       }
 
       el.innerHTML = `
         <div class="card-thumb">${thumbHtml}</div>
         <div class="card-body">
-          <div class="card-title">${esc(c.title || 'Untitled')}</div>
+          <div class="card-title">${esc(c.title || i18n['card.untitled'])}</div>
           <div class="card-meta">${esc(c.uploader)}${c.duration ? ' · ' + fmtDur(c.duration) : ''}</div>
           <div class="card-actions">${actionHtml}</div>
         </div>
@@ -594,7 +597,7 @@
       const bar = document.createElement('div');
       bar.id = 'dl-all-bar';
       bar.className = 'dl-all-bar';
-      bar.innerHTML = `<button class="dl-all-btn" onclick="dlAll()">Download All</button>`;
+      bar.innerHTML = `<button class="dl-all-btn" onclick="dlAll()">${esc(i18n['batch.download_all'])}</button>`;
       document.getElementById('cards').appendChild(bar);
     }
 
@@ -657,7 +660,7 @@
         } catch {
           clearInterval(iv);
           c.status = 'error';
-          c.error = 'Lost connection to server';
+          c.error = i18n['error.connection_lost'];
           renderCard(idx);
         }
       }, 1000);
@@ -674,7 +677,7 @@
 
     async function dlAll() {
       const btn = document.querySelector('.dl-all-btn');
-      if (btn) { btn.disabled = true; btn.textContent = 'Downloading...'; }
+      if (btn) { btn.disabled = true; btn.textContent = i18n['batch.download_all.in_progress']; }
 
       for (let i = 0; i < cardData.length; i++) {
         if (cardData[i].status === 'ready') {
@@ -682,7 +685,7 @@
         }
       }
 
-      if (btn) { btn.disabled = false; btn.textContent = 'Download All'; }
+      if (btn) { btn.disabled = false; btn.textContent = i18n['batch.download_all']; }
     }
   </script>
 </body>

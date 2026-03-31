@@ -6,6 +6,8 @@ import subprocess
 import threading
 from flask import Flask, request, jsonify, send_file, render_template
 
+from i18n import detect_lang, get_translator
+
 app = Flask(__name__)
 DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
@@ -13,7 +15,7 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 jobs = {}
 
 
-def run_download(job_id, url, format_choice, format_id):
+def run_download(job_id, url, format_choice, format_id, t):
     job = jobs[job_id]
     out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}.%(ext)s")
 
@@ -38,7 +40,7 @@ def run_download(job_id, url, format_choice, format_id):
         files = glob.glob(os.path.join(DOWNLOAD_DIR, f"{job_id}.*"))
         if not files:
             job["status"] = "error"
-            job["error"] = "Download completed but no file was found"
+            job["error"] = t("error.file_not_found")
             return
 
         if format_choice == "audio":
@@ -67,7 +69,7 @@ def run_download(job_id, url, format_choice, format_id):
             job["filename"] = os.path.basename(chosen)
     except subprocess.TimeoutExpired:
         job["status"] = "error"
-        job["error"] = "Download timed out (5 min limit)"
+        job["error"] = t("error.download_timeout")
     except Exception as e:
         job["status"] = "error"
         job["error"] = str(e)
@@ -75,15 +77,20 @@ def run_download(job_id, url, format_choice, format_id):
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    lang = detect_lang(request.headers.get("Accept-Language", ""))
+    t, strings = get_translator(lang)
+    return render_template("index.html", t=t, strings=strings, lang=lang)
 
 
 @app.route("/api/info", methods=["POST"])
 def get_info():
+    lang = detect_lang(request.headers.get("Accept-Language", ""))
+    t, _ = get_translator(lang)
+
     data = request.json
     url = data.get("url", "").strip()
     if not url:
-        return jsonify({"error": "No URL provided"}), 400
+        return jsonify({"error": t("error.no_url")}), 400
 
     cmd = ["yt-dlp", "--no-playlist", "-j", url]
     try:
@@ -119,13 +126,16 @@ def get_info():
             "formats": formats,
         })
     except subprocess.TimeoutExpired:
-        return jsonify({"error": "Timed out fetching video info"}), 400
+        return jsonify({"error": t("error.info_timeout")}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
 
 @app.route("/api/download", methods=["POST"])
 def start_download():
+    lang = detect_lang(request.headers.get("Accept-Language", ""))
+    t, _ = get_translator(lang)
+
     data = request.json
     url = data.get("url", "").strip()
     format_choice = data.get("format", "video")
@@ -133,12 +143,12 @@ def start_download():
     title = data.get("title", "")
 
     if not url:
-        return jsonify({"error": "No URL provided"}), 400
+        return jsonify({"error": t("error.no_url")}), 400
 
     job_id = uuid.uuid4().hex[:10]
     jobs[job_id] = {"status": "downloading", "url": url, "title": title}
 
-    thread = threading.Thread(target=run_download, args=(job_id, url, format_choice, format_id))
+    thread = threading.Thread(target=run_download, args=(job_id, url, format_choice, format_id, t))
     thread.daemon = True
     thread.start()
 
@@ -147,9 +157,12 @@ def start_download():
 
 @app.route("/api/status/<job_id>")
 def check_status(job_id):
+    lang = detect_lang(request.headers.get("Accept-Language", ""))
+    t, _ = get_translator(lang)
+
     job = jobs.get(job_id)
     if not job:
-        return jsonify({"error": "Job not found"}), 404
+        return jsonify({"error": t("error.job_not_found")}), 404
     return jsonify({
         "status": job["status"],
         "error": job.get("error"),
@@ -159,9 +172,12 @@ def check_status(job_id):
 
 @app.route("/api/file/<job_id>")
 def download_file(job_id):
+    lang = detect_lang(request.headers.get("Accept-Language", ""))
+    t, _ = get_translator(lang)
+
     job = jobs.get(job_id)
     if not job or job["status"] != "done":
-        return jsonify({"error": "File not ready"}), 404
+        return jsonify({"error": t("error.file_not_ready")}), 404
     return send_file(job["file"], as_attachment=True, download_name=job["filename"])
 
 
