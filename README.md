@@ -50,9 +50,45 @@ Anything [yt-dlp supports](https://github.com/yt-dlp/yt-dlp/blob/master/supporte
 
 YouTube, TikTok, Instagram, Twitter/X, Reddit, Facebook, Vimeo, Twitch, Dailymotion, SoundCloud, Loom, Streamable, Pinterest, Tumblr, Threads, LinkedIn, and many more.
 
+## Internationalisation (i18n)
+
+All user-facing strings are externalised into JSON files under `translations/`.
+
+| File | Language |
+|------|----------|
+| `translations/en.json` | English (default) |
+| `translations/fr.json` | French |
+
+**How it works**
+
+The active language is resolved in this order:
+1. `RECLIP_LANG` environment variable (e.g. `RECLIP_LANG=fr`)
+2. The browser's `Accept-Language` header (first locale whose file exists)
+3. Fallback: `en`
+
+The server loads the matching JSON file, merges it on top of the English base (so missing keys always fall back to English), and injects the full strings object into the page as `window.i18n`. All HTML strings use Jinja2 `{{ t('key') }}` and all JavaScript strings use `i18n['key']`.
+
+**Adding a new language**
+
+1. Copy `translations/en.json` to `translations/<lang_code>.json` (e.g. `translations/de.json`).
+2. Translate all the values — keep the keys unchanged.
+3. Set `RECLIP_LANG=de` (or rely on the browser header) — no code changes needed.
+
+**Setting the default language**
+
+```bash
+RECLIP_LANG=fr ./reclip.sh
+```
+
+Or in Docker:
+
+```bash
+docker run -e RECLIP_LANG=fr -p 8899:8899 reclip
+```
+
 ## Stack
 
-- **Backend:** Python + Flask (~150 lines)
+- **Backend:** Python + Flask (~170 lines)
 - **Frontend:** Vanilla HTML/CSS/JS (single file, no build step)
 - **Download engine:** [yt-dlp](https://github.com/yt-dlp/yt-dlp) + [ffmpeg](https://ffmpeg.org/)
 - **Dependencies:** 2 (Flask, yt-dlp)

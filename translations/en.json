@@ -1,0 +1,45 @@
+{
+  "app.title": "ReClip — Free Media Downloader",
+  "app.tagline": "Free media downloader",
+
+  "form.url.placeholder": "Paste one or more URLs...",
+  "form.url.hint": "Multiple links? Separate with spaces, commas, or newlines.",
+
+  "form.format.mp4": "MP4",
+  "form.format.mp3": "MP3",
+
+  "form.submit": "Fetch",
+  "form.submit.loading": "Loading...",
+
+  "card.untitled": "Untitled",
+  "card.download": "Download",
+  "card.download.in_progress": "Downloading...",
+  "card.save": "Save",
+  "card.retry": "Retry",
+  "card.fetch_error": "Could not fetch video",
+
+  "batch.download_all": "Download All",
+  "batch.download_all.in_progress": "Downloading...",
+
+  "error.no_url": "No URL provided",
+  "error.file_not_found": "Download completed but no file was found",
+  "error.download_timeout": "Download timed out (5 min limit)",
+  "error.info_timeout": "Timed out fetching video info",
+  "error.job_not_found": "Job not found",
+  "error.file_not_ready": "File not ready",
+  "error.download_failed": "Download failed",
+  "error.connection_lost": "Lost connection to server",
+  "error.unsupported_url": "This URL is not supported",
+  "error.video_unavailable": "Video is unavailable or private",
+  "error.private_video": "This video is private",
+  "error.forbidden": "Access denied by the platform",
+  "error.not_found": "Video not found",
+  "error.copyright": "Video blocked due to copyright",
+  "error.geo_blocked": "Video not available in your region",
+  "error.timeout": "Request timed out — try again",
+  "error.network": "Network error — check your connection",
+
+  "sites.line1": "YouTube · TikTok · Instagram · Twitter/X · Reddit · Facebook",
+  "sites.line2": "Vimeo · Twitch · Dailymotion · SoundCloud · Loom · Streamable",
+  "sites.line3": "Pinterest · Tumblr · Threads · LinkedIn · 1000+ more"
+}

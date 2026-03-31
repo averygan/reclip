@@ -1,0 +1,45 @@
+{
+  "app.title": "ReClip — Téléchargeur multimédia gratuit",
+  "app.tagline": "Téléchargeur multimédia gratuit",
+
+  "form.url.placeholder": "Collez une ou plusieurs URL...",
+  "form.url.hint": "Plusieurs liens ? Séparez-les par des espaces, virgules ou retours à la ligne.",
+
+  "form.format.mp4": "MP4",
+  "form.format.mp3": "MP3",
+
+  "form.submit": "Récupérer",
+  "form.submit.loading": "Chargement...",
+
+  "card.untitled": "Sans titre",
+  "card.download": "Télécharger",
+  "card.download.in_progress": "Téléchargement...",
+  "card.save": "Enregistrer",
+  "card.retry": "Réessayer",
+  "card.fetch_error": "Impossible de récupérer la vidéo",
+
+  "batch.download_all": "Tout télécharger",
+  "batch.download_all.in_progress": "Téléchargement...",
+
+  "error.no_url": "Aucune URL fournie",
+  "error.file_not_found": "Téléchargement terminé mais aucun fichier trouvé",
+  "error.download_timeout": "Délai de téléchargement dépassé (limite : 5 min)",
+  "error.info_timeout": "Délai dépassé lors de la récupération des informations",
+  "error.job_not_found": "Tâche introuvable",
+  "error.file_not_ready": "Fichier non disponible",
+  "error.download_failed": "Échec du téléchargement",
+  "error.connection_lost": "Connexion au serveur perdue",
+  "error.unsupported_url": "Cette URL n'est pas prise en charge",
+  "error.video_unavailable": "Vidéo indisponible ou privée",
+  "error.private_video": "Cette vidéo est privée",
+  "error.forbidden": "Accès refusé par la plateforme",
+  "error.not_found": "Vidéo introuvable",
+  "error.copyright": "Vidéo bloquée pour droits d'auteur",
+  "error.geo_blocked": "Vidéo non disponible dans votre région",
+  "error.timeout": "Délai dépassé — réessayez",
+  "error.network": "Erreur réseau — vérifiez votre connexion",
+
+  "sites.line1": "YouTube · TikTok · Instagram · Twitter/X · Reddit · Facebook",
+  "sites.line2": "Vimeo · Twitch · Dailymotion · SoundCloud · Loom · Streamable",
+  "sites.line3": "Pinterest · Tumblr · Threads · LinkedIn · 1000+ sites"
+}
