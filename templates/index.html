@@ -387,15 +387,16 @@
       <p>Free media downloader</p>
     </div>
 
-    <textarea id="urls" placeholder="Paste one or more URLs..." rows="2"></textarea>
+    <label for="urls" class="hint" style="display:block;margin-bottom:6px;">Paste video or audio URLs below</label>
+    <textarea id="urls" placeholder="Paste one or more URLs..." rows="2" aria-label="Video or audio URLs"></textarea>
     <p class="hint">Multiple links? Separate with spaces, commas, or newlines.</p>
 
     <div class="controls">
       <div class="pill-group">
-        <button class="pill active" data-format="video" onclick="setFormat(this)">MP4</button>
-        <button class="pill" data-format="audio" onclick="setFormat(this)">MP3</button>
+        <button class="pill active" data-format="video" onclick="setFormat(this)" aria-label="Download as MP4 video">MP4</button>
+        <button class="pill" data-format="audio" onclick="setFormat(this)" aria-label="Download as MP3 audio">MP3</button>
       </div>
-      <button class="fetch-btn" id="goBtn" onclick="go()">Fetch</button>
+      <button class="fetch-btn" id="goBtn" onclick="go()" aria-label="Fetch video information">Fetch</button>
     </div>
 
     <div id="cards" class="cards"></div>
@@ -628,7 +629,7 @@
           return;
         }
         c.jobId = data.job_id;
-        pollCard(idx);
+        await pollCard(idx);
       } catch (err) {
         c.status = 'error';
         c.error = err.message;
@@ -638,29 +639,34 @@
 
     function pollCard(idx) {
       const c = cardData[idx];
-      const iv = setInterval(async () => {
-        try {
-          const res = await fetch(`/api/status/${c.jobId}`);
-          const data = await res.json();
-          if (data.status === 'done') {
-            clearInterval(iv);
-            c.status = 'done';
-            c.filename = data.filename;
-            renderCard(idx);
-            saveCard(idx);
-          } else if (data.status === 'error') {
+      return new Promise((resolve) => {
+        const iv = setInterval(async () => {
+          try {
+            const res = await fetch(`/api/status/${c.jobId}`);
+            const data = await res.json();
+            if (data.status === 'done') {
+              clearInterval(iv);
+              c.status = 'done';
+              c.filename = data.filename;
+              renderCard(idx);
+              saveCard(idx);
+              resolve();
+            } else if (data.status === 'error') {
+              clearInterval(iv);
+              c.status = 'error';
+              c.error = data.error;
+              renderCard(idx);
+              resolve();
+            }
+          } catch {
             clearInterval(iv);
             c.status = 'error';
-            c.error = data.error;
+            c.error = 'Lost connection to server';
             renderCard(idx);
+            resolve();
           }
-        } catch {
-          clearInterval(iv);
-          c.status = 'error';
-          c.error = 'Lost connection to server';
-          renderCard(idx);
-        }
-      }, 1000);
+        }, 1000);
+      });
     }
 
     function saveCard(idx) {
@@ -670,6 +676,10 @@
       a.href = `/api/file/${c.jobId}`;
       a.download = c.filename || '';
       a.click();
+      // Signal server to clean up after a short delay
+      setTimeout(() => {
+        fetch(`/api/cleanup/${c.jobId}`, { method: 'POST' }).catch(() => {});
+      }, 5000);
     }
 
     async function dlAll() {
