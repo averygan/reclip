@@ -4,20 +4,51 @@ import glob
 import json
 import subprocess
 import threading
+import shutil
+import sys
 from flask import Flask, request, jsonify, send_file, render_template
 
 app = Flask(__name__)
-DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
+# Vercel serverless functions (and many other serverless platforms) only allow
+# writes in /tmp. Keep local development behavior, but prefer /tmp in
+# serverless environments to avoid startup crashes.
+DEFAULT_DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
+DOWNLOAD_DIR = os.environ.get("DOWNLOAD_DIR")
+if not DOWNLOAD_DIR:
+    if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+        DOWNLOAD_DIR = "/tmp/clipdown-downloads"
+    else:
+        DOWNLOAD_DIR = DEFAULT_DOWNLOAD_DIR
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 jobs = {}
+
+
+def build_ytdlp_flags():
+    flags = ["--no-playlist"]
+    cookies_file = os.environ.get("YTDLP_COOKIES_FILE", "").strip()
+    cookies_from_browser = os.environ.get("YTDLP_COOKIES_FROM_BROWSER", "").strip()
+    if cookies_file:
+        flags += ["--cookies", cookies_file]
+    elif cookies_from_browser:
+        flags += ["--cookies-from-browser", cookies_from_browser]
+    return flags
+
+
+def build_ytdlp_cmd(*args):
+    override = os.environ.get("YT_DLP_BIN", "").strip()
+    if override:
+        return [override, *args]
+    if shutil.which("yt-dlp"):
+        return ["yt-dlp", *args]
+    return [sys.executable, "-m", "yt_dlp", *args]
 
 
 def run_download(job_id, url, format_choice, format_id):
     job = jobs[job_id]
     out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}.%(ext)s")
 
-    cmd = ["yt-dlp", "--no-playlist", "-o", out_template]
+    cmd = build_ytdlp_cmd(*build_ytdlp_flags(), "-o", out_template)
 
     if format_choice == "audio":
         cmd += ["-x", "--audio-format", "mp3"]
@@ -31,8 +62,14 @@ def run_download(job_id, url, format_choice, format_id):
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
         if result.returncode != 0:
+            last_error = result.stderr.strip().split("\n")[-1]
+            if "Sign in to confirm you’re not a bot" in result.stderr:
+                last_error = (
+                    "YouTube requires cookies for this video. "
+                    "Set YTDLP_COOKIES_FILE or YTDLP_COOKIES_FROM_BROWSER."
+                )
             job["status"] = "error"
-            job["error"] = result.stderr.strip().split("\n")[-1]
+            job["error"] = last_error
             return
 
         files = glob.glob(os.path.join(DOWNLOAD_DIR, f"{job_id}.*"))
@@ -68,6 +105,9 @@ def run_download(job_id, url, format_choice, format_id):
     except subprocess.TimeoutExpired:
         job["status"] = "error"
         job["error"] = "Download timed out (5 min limit)"
+    except FileNotFoundError:
+        job["status"] = "error"
+        job["error"] = "yt-dlp is not installed on the server"
     except Exception as e:
         job["status"] = "error"
         job["error"] = str(e)
@@ -85,11 +125,17 @@ def get_info():
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
-    cmd = ["yt-dlp", "--no-playlist", "-j", url]
+    cmd = build_ytdlp_cmd(*build_ytdlp_flags(), "-j", url)
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         if result.returncode != 0:
-            return jsonify({"error": result.stderr.strip().split("\n")[-1]}), 400
+            last_error = result.stderr.strip().split("\n")[-1]
+            if "Sign in to confirm you’re not a bot" in result.stderr:
+                last_error = (
+                    "YouTube requires cookies for this video. "
+                    "Set YTDLP_COOKIES_FILE or YTDLP_COOKIES_FROM_BROWSER."
+                )
+            return jsonify({"error": last_error}), 400
 
         info = json.loads(result.stdout)
 
@@ -120,6 +166,8 @@ def get_info():
         })
     except subprocess.TimeoutExpired:
         return jsonify({"error": "Timed out fetching video info"}), 400
+    except FileNotFoundError:
+        return jsonify({"error": "yt-dlp is not installed on the server"}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
