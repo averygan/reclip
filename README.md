@@ -1,4 +1,4 @@
-# ReClip
+# Clipdown
 
 A self-hosted, open-source video and audio downloader with a clean web UI. Paste links from YouTube, TikTok, Instagram, Twitter/X, and 1000+ other sites — download as MP4 or MP3.
 
@@ -7,7 +7,7 @@ A self-hosted, open-source video and audio downloader with a clean web UI. Paste
 
 https://github.com/user-attachments/assets/419d3e50-c933-444b-8cab-a9724986ba05
 
-![ReClip MP3 Mode](assets/preview-mp3.png)
+![Clipdown MP3 Mode](assets/preview-mp3.png)
 
 ## Features
 
@@ -35,6 +35,13 @@ Or with Docker:
 ```bash
 docker build -t reclip . && docker run -p 8899:8899 reclip
 ```
+
+## Deployment Notes (Vercel / Serverless)
+
+- Clipdown runs best as a traditional long-running server (VM/container).
+- On serverless platforms, filesystem writes are usually restricted to `/tmp`.
+- Background in-memory jobs (`jobs = {}` + threads) are not durable across cold starts, so downloads can fail or disappear between requests.
+- If you deploy serverless anyway, set `DOWNLOAD_DIR=/tmp/clipdown-downloads` and expect reduced reliability for long downloads.
 
 ## Usage
 
