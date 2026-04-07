@@ -674,15 +674,91 @@
 
     async function dlAll() {
       const btn = document.querySelector('.dl-all-btn');
-      if (btn) { btn.disabled = true; btn.textContent = 'Downloading...'; }
+      if (btn) { btn.disabled = true; btn.textContent = 'Starting batch...'; }
 
-      for (let i = 0; i < cardData.length; i++) {
-        if (cardData[i].status === 'ready') {
-          await dlCard(i);
+      const readyCards = cardData.filter(c => c.status === 'ready');
+      if (readyCards.length === 0) {
+        if (btn) { btn.disabled = false; btn.textContent = 'Download All'; }
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/batch/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            urls: readyCards.map(c => c.url),
+            format: currentFormat,
+          }),
+        });
+        const data = await res.json();
+        if (data.error) {
+          // Fallback to sequential download
+          for (let i = 0; i < cardData.length; i++) {
+            if (cardData[i].status === 'ready') await dlCard(i);
+          }
+        } else {
+          // Map job_ids back to card indices
+          const jobMap = {};
+          data.job_ids.forEach((jid, i) => {
+            jobMap[jid] = readyCards[i];
+          });
+
+          // Poll batch status
+          await pollBatch(data.batch_id, jobMap);
+        }
+      } catch {
+        // Fallback to sequential
+        for (let i = 0; i < cardData.length; i++) {
+          if (cardData[i].status === 'ready') await dlCard(i);
         }
       }
 
       if (btn) { btn.disabled = false; btn.textContent = 'Download All'; }
+    }
+
+    async function pollBatch(batchId, jobMap) {
+      return new Promise((resolve) => {
+        const iv = setInterval(async () => {
+          try {
+            const res = await fetch(`/api/batch/status/${batchId}`);
+            const data = await res.json();
+
+            // Update individual card statuses
+            for (const job of data.jobs) {
+              const card = Object.values(jobMap).find(c => {
+                // Match by URL since we don't store jobId on card during batch
+                return true;
+              });
+              // Find the card by matching job_id
+              for (const [jid, c] of Object.entries(jobMap)) {
+                if (job.job_id === jid) {
+                  if (job.status === 'done') {
+                    c.status = 'done';
+                    c.jobId = jid;
+                    c.filename = job.filename;
+                    renderCard(cardData.indexOf(c));
+                    saveCard(cardData.indexOf(c));
+                  } else if (job.status === 'error') {
+                    c.status = 'error';
+                    c.error = job.error;
+                    renderCard(cardData.indexOf(c));
+                  }
+                  break;
+                }
+              }
+            }
+
+            if (data.all_done) {
+              clearInterval(iv);
+              resolve();
+            }
+          } catch {
+            clearInterval(iv);
+            resolve();
+          }
+        }, 1500);
+      });
     }
   </script>
 </body>
