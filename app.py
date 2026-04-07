@@ -4,6 +4,7 @@ import glob
 import json
 import subprocess
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, request, jsonify, send_file, render_template
 
 app = Flask(__name__)
@@ -11,6 +12,10 @@ DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 jobs = {}
+
+# Max concurrent downloads in a batch
+MAX_BATCH_WORKERS = 3
+batch_executor = ThreadPoolExecutor(max_workers=MAX_BATCH_WORKERS)
 
 
 def run_download(job_id, url, format_choice, format_id):
@@ -163,6 +168,94 @@ def download_file(job_id):
     if not job or job["status"] != "done":
         return jsonify({"error": "File not ready"}), 404
     return send_file(job["file"], as_attachment=True, download_name=job["filename"])
+
+
+@app.route("/api/batch/download", methods=["POST"])
+def batch_download():
+    """Start multiple downloads in parallel.
+
+    Expects JSON body:
+    {
+        "urls": ["https://...", "https://..."],
+        "format": "video" | "audio",
+        "format_id": null | "..."
+    }
+    Returns a batch_id and individual job_ids.
+    """
+    data = request.json
+    urls = data.get("urls", [])
+    format_choice = data.get("format", "video")
+    format_id = data.get("format_id")
+
+    if not urls or not isinstance(urls, list):
+        return jsonify({"error": "No URLs provided"}), 400
+
+    if len(urls) > 20:
+        return jsonify({"error": "Maximum 20 URLs per batch"}), 400
+
+    batch_id = uuid.uuid4().hex[:10]
+    job_ids = []
+
+    for url in urls:
+        url = url.strip()
+        if not url:
+            continue
+        job_id = uuid.uuid4().hex[:10]
+        jobs[job_id] = {"status": "downloading", "url": url, "batch_id": batch_id}
+        job_ids.append(job_id)
+        batch_executor.submit(run_download, job_id, url, format_choice, format_id)
+
+    jobs[batch_id] = {
+        "status": "batch",
+        "job_ids": job_ids,
+        "total": len(job_ids),
+    }
+
+    return jsonify({
+        "batch_id": batch_id,
+        "job_ids": job_ids,
+        "total": len(job_ids),
+    })
+
+
+@app.route("/api/batch/status/<batch_id>")
+def batch_status(batch_id):
+    """Get status of all jobs in a batch."""
+    batch = jobs.get(batch_id)
+    if not batch or batch.get("status") != "batch":
+        return jsonify({"error": "Batch not found"}), 404
+
+    job_ids = batch.get("job_ids", [])
+    results = []
+    done_count = 0
+    error_count = 0
+
+    for jid in job_ids:
+        job = jobs.get(jid)
+        if not job:
+            results.append({"job_id": jid, "status": "unknown"})
+            continue
+        results.append({
+            "job_id": jid,
+            "status": job["status"],
+            "error": job.get("error"),
+            "filename": job.get("filename"),
+        })
+        if job["status"] == "done":
+            done_count += 1
+        elif job["status"] == "error":
+            error_count += 1
+
+    all_done = done_count + error_count >= len(job_ids)
+    return jsonify({
+        "batch_id": batch_id,
+        "total": len(job_ids),
+        "done": done_count,
+        "errors": error_count,
+        "pending": len(job_ids) - done_count - error_count,
+        "all_done": all_done,
+        "jobs": results,
+    })
 
 
 if __name__ == "__main__":
