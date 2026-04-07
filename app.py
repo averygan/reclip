@@ -2,15 +2,70 @@ import os
 import uuid
 import glob
 import json
+import time
 import subprocess
 import threading
+import logging
 from flask import Flask, request, jsonify, send_file, render_template
 
 app = Flask(__name__)
 DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
+# Cleanup settings
+MAX_DOWNLOAD_AGE_HOURS = 1  # Remove files older than 1 hour
+MAX_DOWNLOAD_DIR_SIZE_MB = 500  # Remove oldest files when dir exceeds this
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 jobs = {}
+
+
+def cleanup_old_downloads():
+    """Remove download files older than MAX_DOWNLOAD_AGE_HOURS."""
+    now = time.time()
+    cutoff = now - (MAX_DOWNLOAD_AGE_HOURS * 3600)
+    removed = 0
+    for f in glob.glob(os.path.join(DOWNLOAD_DIR, "*")):
+        try:
+            if os.path.isfile(f) and os.path.getmtime(f) < cutoff:
+                os.remove(f)
+                removed += 1
+        except OSError:
+            pass
+    if removed:
+        logger.info(f"Cleanup: removed {removed} old download(s)")
+
+
+def enforce_dir_size_limit():
+    """If downloads dir exceeds MAX_DOWNLOAD_DIR_SIZE_MB, remove oldest files first."""
+    files = []
+    total = 0
+    for f in glob.glob(os.path.join(DOWNLOAD_DIR, "*")):
+        if os.path.isfile(f):
+            size = os.path.getsize(f)
+            total += size
+            files.append((os.path.getmtime(f), f, size))
+
+    max_bytes = MAX_DOWNLOAD_DIR_SIZE_MB * 1024 * 1024
+    if total <= max_bytes:
+        return
+
+    # Sort oldest first, remove until under limit
+    files.sort()
+    removed = 0
+    for _, f, size in files:
+        try:
+            os.remove(f)
+            total -= size
+            removed += 1
+            if total <= max_bytes:
+                break
+        except OSError:
+            pass
+    if removed:
+        logger.info(f"Cleanup: removed {removed} file(s) to enforce size limit")
 
 
 def run_download(job_id, url, format_choice, format_id):
@@ -78,6 +133,38 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/api/cleanup", methods=["POST"])
+def cleanup_endpoint():
+    """Manually trigger cleanup of old downloads."""
+    cleanup_old_downloads()
+    enforce_dir_size_limit()
+    return jsonify({"status": "ok", "message": "Cleanup completed"})
+
+
+@app.route("/api/downloads/stats", methods=["GET"])
+def downloads_stats():
+    """Return stats about the downloads folder."""
+    files = glob.glob(os.path.join(DOWNLOAD_DIR, "*"))
+    file_list = []
+    total_size = 0
+    for f in files:
+        if os.path.isfile(f):
+            size = os.path.getsize(f)
+            total_size += size
+            file_list.append({
+                "name": os.path.basename(f),
+                "size": size,
+                "modified": os.path.getmtime(f),
+            })
+    file_list.sort(key=lambda x: x["modified"], reverse=True)
+    return jsonify({
+        "count": len(file_list),
+        "total_size_bytes": total_size,
+        "total_size_mb": round(total_size / (1024 * 1024), 2),
+        "files": file_list,
+    })
+
+
 @app.route("/api/info", methods=["POST"])
 def get_info():
     data = request.json
@@ -135,6 +222,10 @@ def start_download():
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
+    # Run cleanup before starting new downloads
+    cleanup_old_downloads()
+    enforce_dir_size_limit()
+
     job_id = uuid.uuid4().hex[:10]
     jobs[job_id] = {"status": "downloading", "url": url, "title": title}
 
@@ -166,6 +257,10 @@ def download_file(job_id):
 
 
 if __name__ == "__main__":
+    # Clean up stale downloads on startup
+    cleanup_old_downloads()
+    enforce_dir_size_limit()
+
     port = int(os.environ.get("PORT", 8899))
     host = os.environ.get("HOST", "127.0.0.1")
     app.run(host=host, port=port)
