@@ -2,13 +2,21 @@ import os
 import uuid
 import glob
 import json
+import re
 import subprocess
 import threading
+import logging
 from flask import Flask, request, jsonify, send_file, render_template
 
 app = Flask(__name__)
 DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Download timeout: 30 minutes (large files need more time)
+DOWNLOAD_TIMEOUT = 1800
 
 jobs = {}
 
@@ -18,6 +26,9 @@ def run_download(job_id, url, format_choice, format_id):
     out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}.%(ext)s")
 
     cmd = ["yt-dlp", "--no-playlist", "-o", out_template]
+
+    # Enable progress tracking via newline-separated output
+    cmd += ["--newline", "--progress"]
 
     if format_choice == "audio":
         cmd += ["-x", "--audio-format", "mp3"]
@@ -29,10 +40,47 @@ def run_download(job_id, url, format_choice, format_id):
     cmd.append(url)
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-        if result.returncode != 0:
+        # Use Popen for real-time progress parsing
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+
+        progress_pattern = re.compile(r"\[download\]\s+Destination:|\[download\]\s+(\d+\.?\d*)%")
+        last_error_lines = []
+
+        for line in process.stdout:
+            line = line.strip()
+            if not line:
+                continue
+
+            # Track progress percentage
+            match = progress_pattern.search(line)
+            if match:
+                if match.group(1):
+                    try:
+                        pct = float(match.group(1))
+                        job["progress"] = min(pct, 100.0)
+                    except ValueError:
+                        pass
+
+            # Track error/warning lines for better error reporting
+            if line.startswith("ERROR:") or line.startswith("WARNING:"):
+                last_error_lines.append(line)
+                logger.warning(f"Job {job_id}: {line}")
+
+        process.wait(timeout=DOWNLOAD_TIMEOUT)
+
+        if process.returncode != 0:
             job["status"] = "error"
-            job["error"] = result.stderr.strip().split("\n")[-1]
+            # Use the most informative error line
+            if last_error_lines:
+                job["error"] = last_error_lines[-1].replace("ERROR: ", "")
+            else:
+                job["error"] = f"yt-dlp exited with code {process.returncode}"
             return
 
         files = glob.glob(os.path.join(DOWNLOAD_DIR, f"{job_id}.*"))
@@ -56,6 +104,7 @@ def run_download(job_id, url, format_choice, format_id):
                     pass
 
         job["status"] = "done"
+        job["progress"] = 100.0
         job["file"] = chosen
         ext = os.path.splitext(chosen)[1]
         title = job.get("title", "").strip()
@@ -65,12 +114,31 @@ def run_download(job_id, url, format_choice, format_id):
             job["filename"] = f"{safe_title}{ext}" if safe_title else os.path.basename(chosen)
         else:
             job["filename"] = os.path.basename(chosen)
+
+        # Report file size for user awareness
+        try:
+            file_size = os.path.getsize(chosen)
+            job["file_size_mb"] = round(file_size / (1024 * 1024), 2)
+        except OSError:
+            pass
+
     except subprocess.TimeoutExpired:
         job["status"] = "error"
-        job["error"] = "Download timed out (5 min limit)"
+        job["error"] = f"Download timed out ({DOWNLOAD_TIMEOUT // 60} min limit). Try a lower quality format for large files."
+        # Clean up partial file
+        try:
+            process.kill()
+        except Exception:
+            pass
+        for f in glob.glob(os.path.join(DOWNLOAD_DIR, f"{job_id}.*")):
+            try:
+                os.remove(f)
+            except OSError:
+                pass
     except Exception as e:
         job["status"] = "error"
         job["error"] = str(e)
+        logger.exception(f"Job {job_id} failed with unexpected error")
 
 
 @app.route("/")
@@ -154,6 +222,8 @@ def check_status(job_id):
         "status": job["status"],
         "error": job.get("error"),
         "filename": job.get("filename"),
+        "progress": job.get("progress"),
+        "file_size_mb": job.get("file_size_mb"),
     })
 
 
