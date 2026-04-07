@@ -270,6 +270,21 @@
     .card-status.done { color: var(--success); }
     .card-status.error { color: var(--error); }
 
+    .progress-bar-wrap {
+      width: 100%;
+      height: 4px;
+      background: var(--card-border);
+      border-radius: 2px;
+      margin-top: 6px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+
     .q-chip {
       padding: 4px 10px;
       border: 1.5px solid var(--card-border);
@@ -568,7 +583,12 @@
       if (c.status === 'ready') {
         actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">Download</button>${qualityChips}`;
       } else if (c.status === 'downloading') {
-        actionHtml = `<span class="card-status downloading"><span class="spin"></span> Downloading...</span>`;
+        const pct = c.progress != null ? Math.round(c.progress) : null;
+        const pctText = pct != null ? `${pct}%` : '';
+        actionHtml = `<span class="card-status downloading"><span class="spin"></span> Downloading... ${pctText}</span>`;
+        if (pct != null) {
+          actionHtml += `<div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${pct}%"></div></div>`;
+        }
       } else if (c.status === 'done') {
         actionHtml = `<button class="card-dl-btn done" onclick="saveCard(${idx})">Save</button>
           <span class="card-status done">${esc(c.filename || '')}</span>`;
@@ -652,6 +672,9 @@
             clearInterval(iv);
             c.status = 'error';
             c.error = data.error;
+            renderCard(idx);
+          } else if (data.status === 'downloading' && data.progress != null) {
+            c.progress = data.progress;
             renderCard(idx);
           }
         } catch {
