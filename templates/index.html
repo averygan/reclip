@@ -12,14 +12,15 @@
   {% if turnstile_site_key %}
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
   {% endif %}
+  <script>
+    // Set theme before first paint to avoid flash
+    (function() {
+      var t = localStorage.getItem('cliper-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
   <style>
     :root {
-      --dark: #191c1f;
-      --white: #ffffff;
-      --surface: #f4f4f4;
-      --border: #e6e6e6;
-      --text-mid: #505a63;
-      --text-muted: #8d969e;
       --danger: #e23b4a;
       --success: #00a87e;
       --blue: #494fdf;
@@ -30,18 +31,63 @@
       --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
+    /* Dark theme (default) */
+    [data-theme="dark"] {
+      --bg: #0e1013;
+      --fg: #ffffff;
+      --surface: #191c1f;
+      --surface-2: #22262a;
+      --border: #2a2e33;
+      --text-mid: #a8b0b8;
+      --text-muted: #6b7480;
+      --btn-bg: #ffffff;
+      --btn-fg: #191c1f;
+      --btn-secondary-bg: #22262a;
+      --btn-secondary-fg: #ffffff;
+      --input-bg: #191c1f;
+      --pill-group-bg: #22262a;
+      --pill-active-bg: #ffffff;
+      --pill-active-fg: #191c1f;
+      --shimmer-a: #1c2025;
+      --shimmer-b: #262a30;
+      --accent: #6e73ff;
+    }
+
+    /* Light theme */
+    [data-theme="light"] {
+      --bg: #ffffff;
+      --fg: #191c1f;
+      --surface: #f4f4f4;
+      --surface-2: #ffffff;
+      --border: #e6e6e6;
+      --text-mid: #505a63;
+      --text-muted: #8d969e;
+      --btn-bg: #191c1f;
+      --btn-fg: #ffffff;
+      --btn-secondary-bg: #f4f4f4;
+      --btn-secondary-fg: #191c1f;
+      --input-bg: #ffffff;
+      --pill-group-bg: #ffffff;
+      --pill-active-bg: #191c1f;
+      --pill-active-fg: #ffffff;
+      --shimmer-a: #ececec;
+      --shimmer-b: #f6f6f6;
+      --accent: #494fdf;
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    html, body { background: var(--white); }
+    html, body { background: var(--bg); }
 
     body {
       font-family: var(--font-body);
-      color: var(--dark);
+      color: var(--fg);
       min-height: 100vh;
       font-size: 16px;
       line-height: 1.5;
       letter-spacing: 0.16px;
       -webkit-font-smoothing: antialiased;
+      transition: background 0.2s, color 0.2s;
     }
 
     .page {
@@ -62,15 +108,40 @@
       font-size: 24px;
       font-weight: 600;
       letter-spacing: -0.4px;
-      color: var(--dark);
+      color: var(--fg);
     }
-    .nav-brand span { color: var(--blue); }
+    .nav-brand span { color: var(--accent); }
     .nav-tag {
       font-size: 14px;
       font-weight: 500;
       color: var(--text-mid);
       letter-spacing: 0.16px;
     }
+
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .theme-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--fg);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .theme-btn:hover { opacity: 0.8; }
+    .theme-btn svg { width: 18px; height: 18px; }
+    [data-theme="dark"] .theme-btn .icon-sun { display: block; }
+    [data-theme="dark"] .theme-btn .icon-moon { display: none; }
+    [data-theme="light"] .theme-btn .icon-sun { display: none; }
+    [data-theme="light"] .theme-btn .icon-moon { display: block; }
 
     /* Hero */
     .hero {
@@ -82,12 +153,12 @@
       font-weight: 500;
       line-height: 1.00;
       letter-spacing: -2.08px;
-      color: var(--dark);
+      color: var(--fg);
       margin-bottom: 24px;
     }
     .hero h1 em {
       font-style: normal;
-      color: var(--blue);
+      color: var(--accent);
     }
     .hero p {
       font-size: 18px;
@@ -110,8 +181,8 @@
       padding: 18px 20px;
       border: 2px solid transparent;
       border-radius: var(--radius-sm);
-      background: var(--white);
-      color: var(--dark);
+      background: var(--input-bg);
+      color: var(--fg);
       font-family: var(--font-body);
       font-size: 16px;
       line-height: 1.5;
@@ -119,9 +190,9 @@
       outline: none;
       resize: none;
       min-height: 60px;
-      transition: border-color 0.2s;
+      transition: border-color 0.2s, background 0.2s;
     }
-    textarea:focus { border-color: var(--dark); }
+    textarea:focus { border-color: var(--fg); }
     textarea::placeholder { color: var(--text-muted); }
 
     .hint {
@@ -141,10 +212,11 @@
 
     .pill-group {
       display: flex;
-      background: var(--white);
+      background: var(--pill-group-bg);
       border-radius: var(--radius-pill);
       padding: 4px;
       gap: 2px;
+      border: 1px solid var(--border);
     }
     .pill {
       padding: 10px 22px;
@@ -159,16 +231,16 @@
       transition: all 0.2s;
       letter-spacing: 0.16px;
     }
-    .pill.active { background: var(--dark); color: var(--white); }
-    .pill:not(.active):hover { color: var(--dark); }
+    .pill.active { background: var(--pill-active-bg); color: var(--pill-active-fg); }
+    .pill:not(.active):hover { color: var(--fg); }
 
-    /* Primary dark pill button */
+    /* Primary pill button (inverse of bg) */
     .btn-primary {
       padding: 14px 32px;
       border: none;
       border-radius: var(--radius-pill);
-      background: var(--dark);
-      color: var(--white);
+      background: var(--btn-bg);
+      color: var(--btn-fg);
       font-family: var(--font-display);
       font-size: 16px;
       font-weight: 600;
@@ -181,13 +253,13 @@
     .btn-primary:hover { opacity: 0.85; }
     .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    /* Secondary light pill */
+    /* Secondary pill */
     .btn-secondary {
       padding: 10px 22px;
       border: none;
       border-radius: var(--radius-pill);
-      background: var(--surface);
-      color: var(--dark);
+      background: var(--btn-secondary-bg);
+      color: var(--btn-secondary-fg);
       font-family: var(--font-display);
       font-size: 14px;
       font-weight: 600;
@@ -202,8 +274,8 @@
     .btn-outline {
       padding: 8px 18px;
       background: transparent;
-      color: var(--dark);
-      border: 2px solid var(--dark);
+      color: var(--fg);
+      border: 2px solid var(--fg);
       border-radius: var(--radius-pill);
       font-family: var(--font-display);
       font-size: 13px;
@@ -213,10 +285,10 @@
       letter-spacing: 0.16px;
     }
     .btn-outline.active {
-      background: var(--dark);
-      color: var(--white);
+      background: var(--fg);
+      color: var(--bg);
     }
-    .btn-outline:hover:not(.active) { background: rgba(25,28,31,0.06); }
+    .btn-outline:hover:not(.active) { background: var(--surface-2); }
 
     /* Turnstile */
     .cf-turnstile { margin-top: 16px; }
@@ -227,7 +299,7 @@
     .card {
       display: flex;
       gap: 20px;
-      background: var(--white);
+      background: var(--surface-2);
       border-radius: var(--radius-md);
       padding: 20px;
       margin-bottom: 14px;
@@ -267,7 +339,7 @@
 
     /* Shimmer */
     .shimmer {
-      background: linear-gradient(90deg, #ececec 25%, #f6f6f6 50%, #ececec 75%);
+      background: linear-gradient(90deg, var(--shimmer-a) 25%, var(--shimmer-b) 50%, var(--shimmer-a) 75%);
       background-size: 200% 100%;
       animation: shimmer 1.5s infinite;
     }
@@ -296,7 +368,7 @@
       font-weight: 600;
       line-height: 1.3;
       letter-spacing: -0.2px;
-      color: var(--dark);
+      color: var(--fg);
       margin-bottom: 4px;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -325,7 +397,7 @@
     .card-status.done { color: var(--success); }
     .card-status.error { color: var(--danger); }
 
-    .card.card-error { border-color: rgba(226,59,74,0.3); }
+    .card.card-error { border-color: rgba(226,59,74,0.35); }
     .card-error-icon {
       width: 100%;
       height: 100%;
@@ -350,10 +422,6 @@
     }
 
     .dl-all-bar { margin-top: 20px; }
-    .btn-success {
-      background: var(--dark);
-      color: var(--white);
-    }
 
     .spin {
       display: inline-block;
@@ -378,7 +446,7 @@
       font-size: 24px;
       font-weight: 500;
       letter-spacing: -0.24px;
-      color: var(--dark);
+      color: var(--fg);
       margin-bottom: 20px;
     }
     .platforms p {
@@ -418,7 +486,13 @@
   <div class="page">
     <nav class="nav">
       <div class="nav-brand">cliper<span>.</span></div>
-      <div class="nav-tag">Free · No signup</div>
+      <div class="theme-toggle">
+        <div class="nav-tag">Free · No signup</div>
+        <button class="theme-btn" onclick="toggleTheme()" aria-label="Toggle theme">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
     </nav>
 
     <div class="hero">
@@ -439,7 +513,7 @@
       </div>
 
       {% if turnstile_site_key %}
-      <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" data-callback="onTurnstile" data-theme="light"></div>
+      <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" data-callback="onTurnstile" data-theme="auto"></div>
       {% endif %}
     </div>
 
@@ -461,6 +535,19 @@
     let cfToken = '';
 
     function onTurnstile(token) { cfToken = token; }
+
+    function toggleTheme() {
+      const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+      const next = cur === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('cliper-theme', next);
+      // Re-render turnstile widget in the correct theme if present
+      if (window.turnstile) {
+        document.querySelectorAll('.cf-turnstile').forEach(el => {
+          el.setAttribute('data-theme', next);
+        });
+      }
+    }
 
     function setFormat(btn) {
       document.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
