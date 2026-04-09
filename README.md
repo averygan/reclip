@@ -21,6 +21,15 @@ https://github.com/user-attachments/assets/419d3e50-c933-444b-8cab-a9724986ba05
 
 ## Quick Start
 
+Use the pre-built Docker image:
+```bash
+docker run --rm -p 8899:8899 ghcr.io/averygan/reclip:latest
+```
+
+Open **http://localhost:8899**.
+
+Or build from source:
+
 ```bash
 brew install yt-dlp ffmpeg    # or apt install ffmpeg && pip install yt-dlp
 git clone https://github.com/averygan/reclip.git
@@ -28,9 +37,7 @@ cd reclip
 ./reclip.sh
 ```
 
-Open **http://localhost:8899**.
-
-Or with Docker:
+Or build your own Docker image:
 
 ```bash
 docker build -t reclip . && docker run -p 8899:8899 reclip
