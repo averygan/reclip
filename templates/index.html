@@ -453,8 +453,8 @@
     }
     .info-strip a { display: block; border-radius: var(--radius-sm); overflow: hidden; transition: opacity 0.2s; }
     .info-strip a:hover { opacity: 0.9; }
-    .info-strip img.img-wide { display: block; }
-    .info-strip img.img-compact { display: none; }
+    .info-strip img.img-wide { display: block; max-width: 100%; height: auto; }
+    .info-strip img.img-compact { display: none; max-width: 100%; height: auto; }
     @media (max-width: 640px) {
       .info-strip img.img-wide { display: none; }
       .info-strip img.img-compact { display: block; }
@@ -546,8 +546,8 @@
 
     <div class="info-strip">
       <a href="https://toppio.xyz/" target="_blank" rel="noopener">
-        <img class="img-wide" src="/static/tp-w.png" alt="Toppio" width="728" height="90">
-        <img class="img-compact" src="/static/tp-c.png" alt="Toppio" width="320" height="100">
+        <img class="img-wide" src="/static/tp-w.png" alt="Toppio">
+        <img class="img-compact" src="/static/tp-c.png" alt="Toppio">
       </a>
     </div>
 
