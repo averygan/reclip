@@ -441,11 +441,14 @@
       margin-top: 48px;
       display: flex;
       justify-content: center;
-      min-height: 90px;
     }
-    .ad-banner:empty { display: none; }
+    .ad-banner a { display: block; border-radius: var(--radius-sm); overflow: hidden; transition: opacity 0.2s; }
+    .ad-banner a:hover { opacity: 0.9; }
+    .ad-banner img { display: block; }
+    .ad-mobile { display: none; }
     @media (max-width: 640px) {
-      .ad-banner { min-height: 100px; }
+      .ad-desktop { display: none; }
+      .ad-mobile { display: block; }
     }
 
     /* Supported platforms */
@@ -533,7 +536,10 @@
     <div id="cards" class="cards"></div>
 
     <div class="ad-banner">
-      <!-- Paste your ad code here -->
+      <a href="https://toppio.xyz/" target="_blank" rel="noopener">
+        <img class="ad-desktop" src="/static/banner_728x90.png" alt="Toppio" width="728" height="90">
+        <img class="ad-mobile" src="/static/banner_320x100.png" alt="Toppio" width="320" height="100">
+      </a>
     </div>
 
     <div class="platforms">
