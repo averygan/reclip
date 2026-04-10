@@ -1,9 +1,0 @@
-- generic [active] [ref=e1]:
-  - generic [ref=e2]: cliper.
-  - heading "Paste a link. Get the file." [level=1] [ref=e3]:
-    - text: Paste a link.
-    - text: Get the
-    - emphasis [ref=e4]: file
-    - text: .
-  - paragraph [ref=e5]: Free media downloader. No signup required.
-  - generic [ref=e6]: cliper.ge
