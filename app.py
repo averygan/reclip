@@ -153,7 +153,7 @@ def run_download(job_id, url, format_choice, format_id):
         elif format_id:
             cmd += ["-f", f"{format_id}+bestaudio/best", "--merge-output-format", "mp4"]
         else:
-            cmd += ["-f", "bestvideo+bestaudio/best", "--merge-output-format", "mp4"]
+            cmd += ["-f", "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best", "--merge-output-format", "mp4"]
 
         cmd.append(url)
 
@@ -247,6 +247,8 @@ def get_info():
 
         formats = []
         for height, f in best_by_height.items():
+            if height > 1080:
+                continue
             formats.append({
                 "id": f["format_id"],
                 "label": f"{height}p",

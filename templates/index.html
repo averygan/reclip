@@ -445,19 +445,19 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Ad banner */
-    .promo-strip {
+    /* Info strip */
+    .info-strip {
       margin-top: 48px;
       display: flex;
       justify-content: center;
     }
-    .promo-strip a { display: block; border-radius: var(--radius-sm); overflow: hidden; transition: opacity 0.2s; }
-    .promo-strip a:hover { opacity: 0.9; }
-    .promo-strip img.promo-wide { display: block; }
-    .promo-strip img.promo-compact { display: none; }
+    .info-strip a { display: block; border-radius: var(--radius-sm); overflow: hidden; transition: opacity 0.2s; }
+    .info-strip a:hover { opacity: 0.9; }
+    .info-strip img.img-wide { display: block; }
+    .info-strip img.img-compact { display: none; }
     @media (max-width: 640px) {
-      .promo-strip img.promo-wide { display: none; }
-      .promo-strip img.promo-compact { display: block; }
+      .info-strip img.img-wide { display: none; }
+      .info-strip img.img-compact { display: block; }
     }
 
     /* Supported platforms */
@@ -544,10 +544,10 @@
 
     <div id="cards" class="cards"></div>
 
-    <div class="promo-strip">
+    <div class="info-strip">
       <a href="https://toppio.xyz/" target="_blank" rel="noopener">
-        <img class="promo-wide" src="/static/toppio-wide.png" alt="Toppio" width="728" height="90">
-        <img class="promo-compact" src="/static/toppio-compact.png" alt="Toppio" width="320" height="100">
+        <img class="img-wide" src="/static/tp-w.png" alt="Toppio" width="728" height="90">
+        <img class="img-compact" src="/static/tp-c.png" alt="Toppio" width="320" height="100">
       </a>
     </div>
 
