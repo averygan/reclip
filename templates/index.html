@@ -436,6 +436,18 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* Ad banner */
+    .ad-banner {
+      margin-top: 48px;
+      display: flex;
+      justify-content: center;
+      min-height: 90px;
+    }
+    .ad-banner:empty { display: none; }
+    @media (max-width: 640px) {
+      .ad-banner { min-height: 100px; }
+    }
+
     /* Supported platforms */
     .platforms {
       margin-top: 80px;
@@ -519,6 +531,10 @@
     </div>
 
     <div id="cards" class="cards"></div>
+
+    <div class="ad-banner">
+      <!-- Paste your ad code here -->
+    </div>
 
     <div class="platforms">
       <h3>How it works</h3>
