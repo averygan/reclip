@@ -48,6 +48,21 @@ def run_download(job_id, url, format_choice, format_id):
             target = [f for f in files if f.endswith(".mp4")]
             chosen = target[0] if target else files[0]
 
+        if format_choice == "gif":
+            gif_out = os.path.splitext(chosen)[0] + ".gif"
+            ffmpeg_cmd = [
+                "ffmpeg", "-y", "-i", chosen,
+                "-vf", "fps=15,scale=w='min(480,iw)':h=-2:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse",
+                gif_out
+            ]
+            ff_res = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+            if ff_res.returncode != 0:
+                job["status"] = "error"
+                job["error"] = "Failed to create GIF"
+                return
+            chosen = gif_out
+            files.append(gif_out)
+
         for f in files:
             if f != chosen:
                 try:
