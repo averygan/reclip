@@ -453,11 +453,11 @@
     }
     .promo-strip a { display: block; border-radius: var(--radius-sm); overflow: hidden; transition: opacity 0.2s; }
     .promo-strip a:hover { opacity: 0.9; }
-    .promo-strip img { display: block; }
-    .promo-compact { display: none; }
+    .promo-strip img.promo-wide { display: block; }
+    .promo-strip img.promo-compact { display: none; }
     @media (max-width: 640px) {
-      .promo-wide { display: none; }
-      .promo-compact { display: block; }
+      .promo-strip img.promo-wide { display: none; }
+      .promo-strip img.promo-compact { display: block; }
     }
 
     /* Supported platforms */
