@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   {% if turnstile_site_key %}
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
   {% endif %}
   <script>
     // Set theme before first paint to avoid flash
@@ -291,8 +291,8 @@
     }
     .btn-outline:hover:not(.active) { background: var(--surface-2); }
 
-    /* Turnstile */
-    .cf-turnstile { margin-top: 16px; }
+    /* Turnstile (invisible) */
+    .cf-turnstile { position: absolute; width: 0; height: 0; overflow: hidden; }
 
     /* Cards */
     .cards { margin-top: 32px; }
@@ -514,7 +514,7 @@
       </div>
 
       {% if turnstile_site_key %}
-      <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" data-callback="onTurnstile" data-theme="auto"></div>
+      <div id="turnstile-container"></div>
       {% endif %}
     </div>
 
@@ -535,19 +535,43 @@
     let cardData = [];
     let cfToken = '';
 
+    let turnstileWidgetId = null;
+
     function onTurnstile(token) { cfToken = token; }
+
+    // Render invisible Turnstile widget once API is loaded
+    function initTurnstile() {
+      const container = document.getElementById('turnstile-container');
+      if (container && window.turnstile && turnstileWidgetId === null) {
+        turnstileWidgetId = turnstile.render(container, {
+          sitekey: '{{ turnstile_site_key }}',
+          callback: onTurnstile,
+          size: 'invisible',
+        });
+      }
+    }
+    // Try init on load, retry if script hasn't loaded yet
+    document.addEventListener('DOMContentLoaded', () => { setTimeout(initTurnstile, 500); });
+
+    function refreshTurnstile() {
+      return new Promise((resolve) => {
+        if (!window.turnstile || turnstileWidgetId === null) { resolve(); return; }
+        cfToken = '';
+        turnstile.reset(turnstileWidgetId);
+        // Wait for callback
+        const check = setInterval(() => {
+          if (cfToken) { clearInterval(check); resolve(); }
+        }, 100);
+        // Timeout after 5s
+        setTimeout(() => { clearInterval(check); resolve(); }, 5000);
+      });
+    }
 
     function toggleTheme() {
       const cur = document.documentElement.getAttribute('data-theme') || 'dark';
       const next = cur === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', next);
       localStorage.setItem('cliper-theme', next);
-      // Re-render turnstile widget in the correct theme if present
-      if (window.turnstile) {
-        document.querySelectorAll('.cf-turnstile').forEach(el => {
-          el.setAttribute('data-theme', next);
-        });
-      }
     }
 
     function setFormat(btn) {
@@ -748,6 +772,8 @@
       c.status = 'downloading';
       c.error = null;
       renderCard(idx);
+
+      await refreshTurnstile();
 
       try {
         const res = await fetch('/api/download', {
