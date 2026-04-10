@@ -8,3 +8,4 @@ assets/*.mov
 .env.local
 .env.production
 .env.development
+cookies.txt

@@ -1,0 +1,8 @@
+services:
+  reclip:
+    build: .
+    ports:
+      - "8899:8899"
+    volumes:
+      - ./cookies.txt:/app/cookies.txt
+    restart: unless-stopped

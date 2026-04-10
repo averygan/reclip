@@ -8,6 +8,7 @@ from flask import Flask, request, jsonify, send_file, render_template
 
 app = Flask(__name__)
 DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
+COOKIES_FILE = os.path.join(os.path.dirname(__file__), "cookies.txt")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 jobs = {}
@@ -18,6 +19,8 @@ def run_download(job_id, url, format_choice, format_id):
     out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}.%(ext)s")
 
     cmd = ["yt-dlp", "--no-playlist", "-o", out_template]
+    if os.path.isfile(COOKIES_FILE):
+        cmd += ["--cookies", COOKIES_FILE]
 
     if format_choice == "audio":
         cmd += ["-x", "--audio-format", "mp3"]
@@ -86,6 +89,8 @@ def get_info():
         return jsonify({"error": "No URL provided"}), 400
 
     cmd = ["yt-dlp", "--no-playlist", "-j", url]
+    if os.path.isfile(COOKIES_FILE):
+        cmd += ["--cookies", COOKIES_FILE]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         if result.returncode != 0:
