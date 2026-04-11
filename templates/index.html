@@ -462,6 +462,22 @@
       container.innerHTML = '';
       cardData = [];
 
+      // Check if youtube playlist URL
+      for (let i = 0; i < urls.length; i++) {
+        if (urls[i].includes('youtube.com/playlist')) {
+          const res = await fetch('/api/playlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: urls[i] }),
+          });
+          const data = await res.json();
+          if (data.urls) {
+            // replace playlist URL with individual video URLs
+            urls.splice(i, 1, ...data.urls);
+          }
+        }
+      }
+
       for (let i = 0; i < urls.length; i++) {
         const url = urls[i];
         const idx = cardData.length;
