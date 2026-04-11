@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 from flask import Flask, request, jsonify, send_file, render_template
 from flask_limiter import Limiter
 import requests as http_requests
+import db
 
 app = Flask(__name__)
 DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
@@ -132,6 +133,9 @@ def cleanup_worker():
 
 threading.Thread(target=cleanup_worker, daemon=True).start()
 
+# Best-effort DB init — silent if DATABASE_URL not set
+db.init()
+
 
 def run_download(job_id, url, format_choice, format_id):
     with download_semaphore:
@@ -148,26 +152,36 @@ def run_download(job_id, url, format_choice, format_id):
             "-o", out_template,
         ]
 
+        quality_label = None
         if format_choice == "audio":
             cmd += ["-x", "--audio-format", "mp3"]
+            quality_label = "audio"
         elif format_id:
             cmd += ["-f", f"{format_id}+bestaudio/best", "--merge-output-format", "mp4"]
+            quality_label = str(format_id)
         else:
             cmd += ["-f", "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best", "--merge-output-format", "mp4"]
+            quality_label = "auto<=1080"
 
         cmd.append(url)
+
+        t_start = time.time()
+        success = False
+        err_msg = None
 
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
             if result.returncode != 0:
                 job["status"] = "error"
-                job["error"] = result.stderr.strip().split("\n")[-1] if result.stderr else "Download failed"
+                err_msg = result.stderr.strip().split("\n")[-1] if result.stderr else "Download failed"
+                job["error"] = err_msg
                 return
 
             files = glob.glob(os.path.join(DOWNLOAD_DIR, f"{job_id}.*"))
             if not files:
                 job["status"] = "error"
-                job["error"] = "File too large or too long"
+                err_msg = "File too large or too long"
+                job["error"] = err_msg
                 return
 
             if format_choice == "audio":
@@ -194,12 +208,28 @@ def run_download(job_id, url, format_choice, format_id):
                 job["filename"] = os.path.basename(chosen)
             # Set status last so pollers don't see "done" before file+filename are populated
             job["status"] = "done"
+            success = True
         except subprocess.TimeoutExpired:
             job["status"] = "error"
-            job["error"] = "Download timed out (5 min limit)"
+            err_msg = "Download timed out (5 min limit)"
+            job["error"] = err_msg
         except Exception as e:
             job["status"] = "error"
-            job["error"] = str(e)
+            err_msg = str(e)
+            job["error"] = err_msg
+        finally:
+            ms_elapsed = int((time.time() - t_start) * 1000)
+            db.log_download(
+                url=url,
+                format="mp3" if format_choice == "audio" else "mp4",
+                title=(job.get("title") or None),
+                quality=quality_label,
+                duration=job.get("duration"),
+                country=job.get("country"),
+                success=success,
+                error=err_msg,
+                ms_elapsed=ms_elapsed,
+            )
 
 
 @app.route("/")
@@ -278,6 +308,7 @@ def start_download():
     format_choice = data.get("format", "video")
     format_id = data.get("format_id")
     title = data.get("title", "")
+    duration = data.get("duration")
     cf_token = data.get("cf_token", "")
 
     err = validate_url(url)
@@ -287,12 +318,16 @@ def start_download():
     if not verify_turnstile(cf_token):
         return jsonify({"error": "Bot check failed"}), 403
 
+    country = request.headers.get("CF-IPCountry") or None
+
     job_id = uuid.uuid4().hex[:10]
     with jobs_lock:
         jobs[job_id] = {
             "status": "downloading",
             "url": url,
             "title": title,
+            "duration": duration,
+            "country": country,
             "created": time.time(),
         }
 
