@@ -184,7 +184,6 @@ def run_download(job_id, url, format_choice, format_id):
                     except OSError:
                         pass
 
-            job["status"] = "done"
             job["file"] = chosen
             ext = os.path.splitext(chosen)[1]
             title = job.get("title", "").strip()
@@ -193,6 +192,8 @@ def run_download(job_id, url, format_choice, format_id):
                 job["filename"] = f"{safe_title}{ext}" if safe_title else os.path.basename(chosen)
             else:
                 job["filename"] = os.path.basename(chosen)
+            # Set status last so pollers don't see "done" before file+filename are populated
+            job["status"] = "done"
         except subprocess.TimeoutExpired:
             job["status"] = "error"
             job["error"] = "Download timed out (5 min limit)"
