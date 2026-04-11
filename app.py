@@ -17,7 +17,7 @@ def run_download(job_id, url, format_choice, format_id):
     job = jobs[job_id]
     out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}.%(ext)s")
 
-    cmd = ["yt-dlp", "--no-playlist", "-o", out_template]
+    cmd = ["yt-dlp", "-o", out_template]
 
     if format_choice == "audio":
         cmd += ["-x", "--audio-format", "mp3"]
@@ -85,39 +85,50 @@ def get_info():
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
-    cmd = ["yt-dlp", "--no-playlist", "-j", url]
+    cmd = ["yt-dlp", "-j", url]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
         if result.returncode != 0:
             return jsonify({"error": result.stderr.strip().split("\n")[-1]}), 400
 
-        info = json.loads(result.stdout)
+        info = [json.loads(line) for line in result.stdout.strip().split("\n") if line.strip()]
 
         # Build quality options — keep best format per resolution
-        best_by_height = {}
-        for f in info.get("formats", []):
-            height = f.get("height")
-            if height and f.get("vcodec", "none") != "none":
-                tbr = f.get("tbr") or 0
-                if height not in best_by_height or tbr > (best_by_height[height].get("tbr") or 0):
-                    best_by_height[height] = f
+        def extract_info(info):
+            best_by_height = {}
+            for f in info.get("formats", []):
+                height = f.get("height")
+                if height and f.get("vcodec", "none") != "none":
+                    tbr = f.get("tbr") or 0
+                    if height not in best_by_height or tbr > (best_by_height[height].get("tbr") or 0):
+                        best_by_height[height] = f
 
-        formats = []
-        for height, f in best_by_height.items():
-            formats.append({
-                "id": f["format_id"],
-                "label": f"{height}p",
-                "height": height,
+            formats = []
+            for height, f in best_by_height.items():
+                formats.append({
+                    "id": f["format_id"],
+                    "label": f"{height}p",
+                    "height": height,
+                })
+            formats.sort(key=lambda x: x["height"], reverse=True)
+
+            return {
+                "title": info.get("title", ""),
+                "thumbnail": info.get("thumbnail", ""),
+                "duration": info.get("duration"),
+                "uploader": info.get("uploader", ""),
+                "formats": formats,
+                "url": info.get("webpage_url", url),
+            }
+        result_list = [extract_info(v) for v in info]
+        
+        if len(result_list) ==1:
+            return jsonify(result_list[0])
+        else:
+            return jsonify({
+                "is_playlist": True,
+                "videos": result_list,
             })
-        formats.sort(key=lambda x: x["height"], reverse=True)
-
-        return jsonify({
-            "title": info.get("title", ""),
-            "thumbnail": info.get("thumbnail", ""),
-            "duration": info.get("duration"),
-            "uploader": info.get("uploader", ""),
-            "formats": formats,
-        })
     except subprocess.TimeoutExpired:
         return jsonify({"error": "Timed out fetching video info"}), 400
     except Exception as e:

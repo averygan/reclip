@@ -477,6 +477,31 @@
           const data = await res.json();
           if (data.error) {
             cardData[idx] = { ...cardData[idx], status: 'info-error', error: data.error };
+            renderCard(idx);
+          } else if (data.is_playlist) {
+            cardData.splice(idx, 1);
+            const container = document.getElementById('cards');
+            const placeholder = document.getElementById(`card-${idx}`);
+            if (placeholder) placeholder.remove();
+
+            for (const video of data.videos) {
+              const vidIdx = cardData.length;
+              cardData.push({
+                url: video.url,
+                status: 'ready',
+                title: video.title || '',
+                thumbnail: video.thumbnail || '',
+                duration: video.duration,
+                uploader: video.uploader || '',
+                formats: video.formats || [],
+                selectedFormatId: video.formats?.[0]?.id || null,
+              });
+              const el = document.createElement('div');
+              el.id = `card-${vidIdx}`;
+              el.className = 'card';
+              container.appendChild(el);
+              renderCard(vidIdx);
+            }
           } else {
             cardData[idx] = {
               ...cardData[idx],
@@ -488,11 +513,12 @@
               formats: data.formats || [],
               selectedFormatId: data.formats?.[0]?.id || null,
             };
+            renderCard(idx);
           }
         } catch (err) {
           cardData[idx] = { ...cardData[idx], status: 'info-error', error: err.message };
+          renderCard(idx);
         }
-        renderCard(idx);
       }
 
       if (cardData.filter(c => c.status === 'ready').length > 1) {
