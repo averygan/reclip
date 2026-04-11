@@ -464,7 +464,7 @@
 
       // Check if youtube playlist URL
       for (let i = 0; i < urls.length; i++) {
-        if (urls[i].includes('youtube.com/playlist')) {
+        if (urls[i].includes('list=')) {
           const res = await fetch('/api/playlist', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
