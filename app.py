@@ -124,6 +124,29 @@ def get_info():
         return jsonify({"error": str(e)}), 400
 
 
+@app.route("/api/playlist", methods=["POST"])
+def get_playlist_info():
+    data = request.json
+    url = data.get("url", "").strip()
+    if not url:
+        return jsonify({"error": "No URL provided"}), 400
+
+    cmd = ["yt-dlp", "--flat-playlist", "-J", url]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        if result.returncode != 0:
+            return jsonify({"error": result.stderr.strip().split("\n")[-1]}), 400
+
+        info = json.loads(result.stdout)
+        entries = info.get("entries", [])
+        urls = [entry.get("url") for entry in entries if entry.get("url")]
+        return jsonify({"urls": urls})
+    except subprocess.TimeoutExpired:
+        return jsonify({"error": "Timed out fetching playlist info"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
 @app.route("/api/download", methods=["POST"])
 def start_download():
     data = request.json
