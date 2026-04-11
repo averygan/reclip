@@ -20,11 +20,11 @@ def run_download(job_id, url, format_choice, format_id):
     cmd = ["yt-dlp", "--no-playlist", "-o", out_template]
 
     if format_choice == "audio":
-        cmd += ["-x", "--audio-format", "mp3"]
+        cmd += ["-x", "--audio-format", "mp3", "-S", "acodec:aac"]
     elif format_id:
-        cmd += ["-f", f"{format_id}+bestaudio/best", "--merge-output-format", "mp4"]
+        cmd += ["-f", f"{format_id}+bestaudio/best", "--merge-output-format", "mp4", "-S", "acodec:aac"]
     else:
-        cmd += ["-f", "bestvideo+bestaudio/best", "--merge-output-format", "mp4"]
+        cmd += ["-f", "bestvideo+bestaudio/best", "--merge-output-format", "mp4", "-S", "acodec:aac"]
 
     cmd.append(url)
 
