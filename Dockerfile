@@ -15,4 +15,7 @@ COPY . .
 EXPOSE 8899
 ENV HOST=0.0.0.0
 ENV PORT=8899
-CMD ["sh", "-c", "gunicorn -w 2 -k gthread --threads 8 -t 320 -b 0.0.0.0:${PORT:-8899} app:app"]
+# Single worker + many threads: Cliper is I/O-bound (yt-dlp subprocess waits),
+# and the in-memory `jobs` dict must live in one process so status/file
+# endpoints can see the job a download thread created.
+CMD ["sh", "-c", "gunicorn -w 1 -k gthread --threads 16 -t 320 -b 0.0.0.0:${PORT:-8899} app:app"]
