@@ -1,34 +1,51 @@
-# This config was automatically generated from your source code
-# Stacks detected: deps:python:.
 version: 2.1
-orbs:
-  python: circleci/python@2
+
 jobs:
-  test-python:
-    # Install dependencies and run tests
+  build-and-smoke-test:
     docker:
-      - image: cimg/python:3.8-node
+      - image: cimg/python:3.12
     steps:
       - checkout
-      - python/install-packages
+
       - run:
-          name: Run tests
-          command: pytest --junitxml=junit.xml || ((($? == 5)) && echo 'Did not find any tests to run.')
-      - store_test_results:
-          path: junit.xml
-  deploy:
-    # This is an example deploy job, not actually used by the workflow
-    docker:
-      - image: cimg/base:stable
+          name: Install system packages
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+
+      - run:
+          name: Create venv and install deps
+          command: |
+            python -m venv venv
+            . venv/bin/activate
+            pip install --upgrade pip
+            pip install -r requirements.txt
+
+      - run:
+          name: Smoke test app import
+          command: |
+            . venv/bin/activate
+            python -c "from app import app; print(app.url_map)"
+
+      - run:
+          name: Smoke test yt-dlp and ffmpeg
+          command: |
+            . venv/bin/activate
+            yt-dlp --version
+            ffmpeg -version
+
+  docker-build:
+    machine:
+      image: ubuntu-2204:current
     steps:
-      # Replace this with steps to deploy to users
+      - checkout
       - run:
-          name: deploy
-          command: '#e.g. ./deploy.sh'
+          name: Build Docker image
+          command: |
+            docker build -t reclip .
+
 workflows:
-  build-and-test:
+  build:
     jobs:
-      - test-python
-    # - deploy:
-    #     requires:
-    #       - test-python
+      - build-and-smoke-test
+      - docker-build
