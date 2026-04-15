@@ -1,0 +1,51 @@
+version: 2.1
+
+jobs:
+  build-and-smoke-test:
+    docker:
+      - image: cimg/python:3.12
+    steps:
+      - checkout
+
+      - run:
+          name: Install system packages
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+
+      - run:
+          name: Create venv and install deps
+          command: |
+            python -m venv venv
+            . venv/bin/activate
+            pip install --upgrade pip
+            pip install -r requirements.txt
+
+      - run:
+          name: Smoke test app import
+          command: |
+            . venv/bin/activate
+            python -c "from app import app; print(app.url_map)"
+
+      - run:
+          name: Smoke test yt-dlp and ffmpeg
+          command: |
+            . venv/bin/activate
+            yt-dlp --version
+            ffmpeg -version
+
+  docker-build:
+    machine:
+      image: ubuntu-2204:current
+    steps:
+      - checkout
+      - run:
+          name: Build Docker image
+          command: |
+            docker build -t reclip .
+
+workflows:
+  build:
+    jobs:
+      - build-and-smoke-test
+      - docker-build
