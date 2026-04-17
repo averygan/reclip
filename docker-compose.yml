@@ -1,0 +1,12 @@
+services:
+  reclip:
+    build:
+      context: https://github.com/LibreArbitre/reclip.git#main
+      dockerfile: Dockerfile
+    container_name: reclip
+    restart: unless-stopped
+    environment:
+      - PORT=8899
+      - HOST=0.0.0.0
+    volumes:
+      - /app/downloads
