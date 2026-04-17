@@ -1,10 +1,16 @@
 import os
+import sys
 import uuid
 import glob
 import json
 import subprocess
+import tempfile
 import threading
 from flask import Flask, request, jsonify, send_file, render_template
+
+# Force stdout/stderr flush for Docker logging
+sys.stdout.reconfigure(line_buffering=True)
+sys.stderr.reconfigure(line_buffering=True)
 
 app = Flask(__name__)
 DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
@@ -12,15 +18,74 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 jobs = {}
 
+AUDIO_FORMATS = ["mp3", "aac", "opus", "flac", "wav", "m4a"]
 
-def run_download(job_id, url, format_choice, format_id):
+
+def _cookie_to_tmp(cookie_content):
+    """Write cookie content to a temp file in Netscape format, return path. Caller must clean up."""
+    if not cookie_content:
+        return None
+
+    # If JSON (EditThisCookie export), convert to Netscape format
+    try:
+        parsed = json.loads(cookie_content)
+        if isinstance(parsed, list):
+            lines = ["# Netscape HTTP Cookie File", ""]
+            for c in parsed:
+                domain = c.get("domain", "")
+                flag = "TRUE" if domain.startswith(".") else "FALSE"
+                path = c.get("path", "/")
+                secure = "TRUE" if c.get("secure", False) else "FALSE"
+                exp = c.get("expirationDate") or c.get("expiry") or 0
+                expiry = str(int(float(exp))) if exp else "0"
+                name = c.get("name", "")
+                value = c.get("value", "")
+                if domain and name:
+                    http_only = "#HttpOnly_" if c.get("httpOnly", False) else ""
+                    lines.append(f"{http_only}{domain}\t{flag}\t{path}\t{secure}\t{expiry}\t{name}\t{value}")
+            cookie_content = "\n".join(lines)
+    except (json.JSONDecodeError, ValueError, KeyError):
+        pass  # Not JSON, assume already Netscape format
+
+    fd, path = tempfile.mkstemp(suffix=".txt", prefix="reclip_cookies_")
+    try:
+        os.write(fd, cookie_content.encode("utf-8"))
+        os.close(fd)
+        return path
+    except Exception:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        if os.path.exists(path):
+            os.remove(path)
+        return None
+
+
+def _cleanup_cookie(path):
+    if path and os.path.exists(path):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+
+def run_download(job_id, url, format_choice, format_id, audio_format="mp3", cookie_content=None):
     job = jobs[job_id]
     out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}.%(ext)s")
 
-    cmd = ["yt-dlp", "--no-playlist", "-o", out_template]
+    cmd = ["yt-dlp", "--no-playlist", "--remote-components", "ejs:npm", "-o", out_template]
+
+    # Add cookies if provided
+    cookie_path = None
+    if cookie_content:
+        cookie_path = _cookie_to_tmp(cookie_content)
+        if cookie_path:
+            cmd += ["--cookies", cookie_path]
 
     if format_choice == "audio":
-        cmd += ["-x", "--audio-format", "mp3"]
+        safe_audio_fmt = audio_format if audio_format in AUDIO_FORMATS else "mp3"
+        cmd += ["-x", "--audio-format", safe_audio_fmt]
     elif format_id:
         cmd += ["-f", f"{format_id}+bestaudio/best", "--merge-output-format", "mp4"]
     else:
@@ -30,6 +95,8 @@ def run_download(job_id, url, format_choice, format_id):
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        if cookie_path:
+            _cleanup_cookie(cookie_path)
         if result.returncode != 0:
             job["status"] = "error"
             job["error"] = result.stderr.strip().split("\n")[-1]
@@ -42,7 +109,8 @@ def run_download(job_id, url, format_choice, format_id):
             return
 
         if format_choice == "audio":
-            target = [f for f in files if f.endswith(".mp3")]
+            safe_audio_fmt = audio_format if audio_format in AUDIO_FORMATS else "mp3"
+            target = [f for f in files if f.endswith(f".{safe_audio_fmt}")]
             chosen = target[0] if target else files[0]
         else:
             target = [f for f in files if f.endswith(".mp4")]
@@ -59,7 +127,6 @@ def run_download(job_id, url, format_choice, format_id):
         job["file"] = chosen
         ext = os.path.splitext(chosen)[1]
         title = job.get("title", "").strip()
-        # Sanitize title for filename
         if title:
             safe_title = "".join(c for c in title if c not in r'\/:*?"<>|').strip()[:20].strip()
             job["filename"] = f"{safe_title}{ext}" if safe_title else os.path.basename(chosen)
@@ -85,31 +152,43 @@ def get_info():
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
-    cmd = ["yt-dlp", "--no-playlist", "-j", url]
+    cmd = ["yt-dlp", "--no-playlist", "--remote-components", "ejs:npm", "-j", url]
+    cookie_content = data.get("cookie")
+    cookie_path = None
+    if cookie_content:
+        cookie_path = _cookie_to_tmp(cookie_content)
+        if cookie_path:
+            cmd += ["--cookies", cookie_path]
+
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        if cookie_path:
+            _cleanup_cookie(cookie_path)
         if result.returncode != 0:
             return jsonify({"error": result.stderr.strip().split("\n")[-1]}), 400
 
         info = json.loads(result.stdout)
 
-        # Build quality options — keep best format per resolution
-        best_by_height = {}
+        # Build quality options — group by height+codec, keep best tbr per group
+        best_by_key = {}
         for f in info.get("formats", []):
             height = f.get("height")
-            if height and f.get("vcodec", "none") != "none":
+            vcodec = f.get("vcodec", "none")
+            if height and vcodec != "none":
+                codec_label = vcodec.split(".")[0]
+                key = (height, codec_label)
                 tbr = f.get("tbr") or 0
-                if height not in best_by_height or tbr > (best_by_height[height].get("tbr") or 0):
-                    best_by_height[height] = f
+                if key not in best_by_key or tbr > (best_by_key[key].get("tbr") or 0):
+                    best_by_key[key] = f
 
         formats = []
-        for height, f in best_by_height.items():
+        for (height, codec_label), f in sorted(best_by_key.items(), key=lambda x: (-x[0][0], x[0][1])):
             formats.append({
                 "id": f["format_id"],
                 "label": f"{height}p",
                 "height": height,
+                "codec": codec_label,
             })
-        formats.sort(key=lambda x: x["height"], reverse=True)
 
         return jsonify({
             "title": info.get("title", ""),
@@ -130,15 +209,23 @@ def start_download():
     url = data.get("url", "").strip()
     format_choice = data.get("format", "video")
     format_id = data.get("format_id")
+    audio_format = data.get("audio_format", "mp3")
     title = data.get("title", "")
+    cookie_content = data.get("cookie")
 
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
+    if audio_format not in AUDIO_FORMATS:
+        audio_format = "mp3"
+
     job_id = uuid.uuid4().hex[:10]
     jobs[job_id] = {"status": "downloading", "url": url, "title": title}
 
-    thread = threading.Thread(target=run_download, args=(job_id, url, format_choice, format_id))
+    thread = threading.Thread(
+        target=run_download,
+        args=(job_id, url, format_choice, format_id, audio_format, cookie_content),
+    )
     thread.daemon = True
     thread.start()
 
@@ -162,7 +249,7 @@ def download_file(job_id):
     job = jobs.get(job_id)
     if not job or job["status"] != "done":
         return jsonify({"error": "File not ready"}), 404
-    return send_file(job["file"], as_attachment=True, download_name=job["filename"])
+    return send_file(job["file"], as_attachment=True, download_name=job.get("filename"))
 
 
 if __name__ == "__main__":

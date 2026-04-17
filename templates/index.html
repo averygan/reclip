@@ -141,6 +141,35 @@
     .fetch-btn:active { transform: scale(0.98); }
     .fetch-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
+    /* Audio format picker */
+    #audioFormatSection {
+      display: none;
+      margin-top: 8px;
+    }
+    .audio-format-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .audio-fmt-btn {
+      padding: 5px 12px;
+      border: 1.5px solid var(--card-border);
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+    }
+    .audio-fmt-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(232, 93, 42, 0.06);
+    }
+    .audio-fmt-btn:not(.active):hover { border-color: var(--muted); }
+
     /* Cards */
     .cards { margin-top: 24px; }
 
@@ -175,7 +204,6 @@
       object-fit: cover;
       display: block;
     }
-    /* No-thumbnail icon */
     .card-thumb .no-thumb {
       width: 100%;
       height: 100%;
@@ -190,7 +218,6 @@
       opacity: 0.5;
     }
 
-    /* Shimmer skeleton for loading state */
     .card-thumb.loading {
       background: var(--shimmer);
       background-size: 200% 100%;
@@ -270,6 +297,7 @@
     .card-status.done { color: var(--success); }
     .card-status.error { color: var(--error); }
 
+    /* Quality chips */
     .q-chip {
       padding: 4px 10px;
       border: 1.5px solid var(--card-border);
@@ -287,6 +315,33 @@
       background: rgba(26,26,24,0.04);
     }
     .q-chip:hover:not(.active) { border-color: var(--muted); }
+
+    /* Codec + format rows (vertical layout) */
+    .format-rows { display: flex; flex-direction: column; gap: 4px; }
+    .format-row { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+    .codec-sep {
+      font-size: 0.6rem;
+      color: var(--muted);
+      padding: 0 2px;
+      user-select: none;
+    }
+    .codec-chip {
+      padding: 2px 8px;
+      border: 1.5px solid var(--card-border);
+      border-radius: 5px;
+      background: transparent;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.6rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .codec-chip.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(232, 93, 42, 0.06);
+    }
+    .codec-chip:hover:not(.active) { border-color: var(--muted); }
 
     /* Error card */
     .card.card-error {
@@ -364,7 +419,54 @@
       line-height: 1.8;
     }
 
-    /* Mobile */
+    /* Auth banner (uBlock-safe: no "cookie" in class/id names) */
+    #authSection { margin-top: 12px; }
+    .auth-banner {
+      border: 1.5px solid rgba(232, 93, 42, 0.3);
+      border-radius: var(--radius);
+      background: rgba(232, 93, 42, 0.05);
+      padding: 12px 16px;
+    }
+    .auth-banner-text {
+      font-size: 0.72rem;
+      color: var(--fg);
+      margin-bottom: 8px;
+      line-height: 1.5;
+    }
+    .auth-banner-text a {
+      color: var(--accent);
+      text-decoration: underline;
+    }
+    .auth-upload-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .auth-upload-btn {
+      padding: 6px 14px;
+      border: 1.5px solid var(--accent);
+      border-radius: 7px;
+      background: transparent;
+      color: var(--accent);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .auth-upload-btn:hover { background: rgba(232, 93, 42, 0.1); }
+    .auth-clear-btn {
+      padding: 6px 14px;
+      border: 1.5px solid var(--card-border);
+      border-radius: 7px;
+      background: transparent;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .auth-clear-btn:hover { border-color: var(--muted); color: var(--fg); }
+
     @media (max-width: 500px) {
       .brand h1 { font-size: 3rem; }
       .page { padding: 40px 16px 60px; }
@@ -398,6 +500,32 @@
       <button class="fetch-btn" id="goBtn" onclick="go()">Fetch</button>
     </div>
 
+    <div id="audioFormatSection">
+      <div class="audio-format-group">
+        <button class="audio-fmt-btn active" data-audiofmt="mp3" onclick="setAudioFormat(this)">MP3</button>
+        <button class="audio-fmt-btn" data-audiofmt="aac" onclick="setAudioFormat(this)">AAC</button>
+        <button class="audio-fmt-btn" data-audiofmt="opus" onclick="setAudioFormat(this)">OPUS</button>
+        <button class="audio-fmt-btn" data-audiofmt="flac" onclick="setAudioFormat(this)">FLAC</button>
+        <button class="audio-fmt-btn" data-audiofmt="wav" onclick="setAudioFormat(this)">WAV</button>
+        <button class="audio-fmt-btn" data-audiofmt="m4a" onclick="setAudioFormat(this)">M4A</button>
+      </div>
+    </div>
+
+    <div id="authSection" style="display:none">
+      <div class="auth-banner">
+        <div class="auth-banner-text">
+          <strong>Auth required</strong> — This video needs authentication.
+          Session data is stored in RAM only and deleted when you close this tab.
+          Never written to disk. &nbsp;<a href="https://github.com/LibreArbitre/reclip#cookies" target="_blank" rel="noopener">How to export your session file</a>
+        </div>
+        <div class="auth-upload-row">
+          <input type="file" id="authFile" accept=".txt" style="display:none" onchange="handleAuthFile(this)">
+          <button class="auth-upload-btn" onclick="document.getElementById('authFile').click()">Choose session file</button>
+          <button class="auth-clear-btn" id="authClearBtn" onclick="clearAuth()">Clear</button>
+        </div>
+      </div>
+    </div>
+
     <div id="cards" class="cards"></div>
 
     <div class="footer">
@@ -409,12 +537,58 @@
 
   <script>
     let currentFormat = 'video';
+    let currentAudioFormat = 'mp3';
     let cardData = [];
 
     function setFormat(btn) {
       document.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentFormat = btn.dataset.format;
+      document.getElementById('audioFormatSection').style.display =
+        currentFormat === 'audio' ? 'block' : 'none';
+      cardData.forEach((_, i) => renderCard(i));
+    }
+
+    function setAudioFormat(btn) {
+      document.querySelectorAll('.audio-fmt-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentAudioFormat = btn.dataset.audiofmt;
+    }
+
+    function needsAuth(err) {
+      if (!err) return false;
+      const lower = err.toLowerCase();
+      return lower.includes('sign in') || lower.includes('cookies') || lower.includes('bot') || lower.includes('http error 403') || lower.includes('http error 401') || lower.includes('unavailable');
+    }
+
+    function handleAuthFile(input) {
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        const text = e.target.result;
+        if (text.includes('.youtube.com') || text.includes('youtube')) {
+          sessionStorage.setItem('yt_auth', text);
+          document.getElementById('authClearBtn').style.display = 'inline-block';
+          document.querySelector('.auth-banner-text strong').textContent = 'Auth loaded';
+          // Auto-re-fetch if there are error cards
+          const hasErrors = cardData.some(c => c.status === 'info-error');
+          if (hasErrors) go();
+        } else {
+          alert('This does not look like a valid session file.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function clearAuth() {
+      sessionStorage.removeItem('yt_auth');
+      document.getElementById('authClearBtn').style.display = 'none';
+      document.querySelector('.auth-banner-text strong').textContent = 'Auth required';
+    }
+
+    function getAuth() {
+      return sessionStorage.getItem('yt_auth') || null;
     }
 
     function parseUrls(text) {
@@ -457,10 +631,23 @@
 
       const btn = document.getElementById('goBtn');
       const container = document.getElementById('cards');
+      const authSection = document.getElementById('authSection');
       btn.disabled = true;
       btn.textContent = 'Loading...';
       container.innerHTML = '';
       cardData = [];
+      authSection.style.display = 'none';
+
+      if (getAuth()) {
+        document.getElementById('authClearBtn').style.display = 'inline-block';
+        document.querySelector('.auth-banner-text strong').textContent = 'Auth loaded';
+      } else {
+        document.getElementById('authClearBtn').style.display = 'none';
+        document.querySelector('.auth-banner-text strong').textContent = 'Auth required';
+      }
+
+      let hasAuthError = false;
+      const auth = getAuth();
 
       for (let i = 0; i < urls.length; i++) {
         const url = urls[i];
@@ -469,13 +656,15 @@
         renderCard(idx);
 
         try {
+          const body = auth ? JSON.stringify({ url, cookie: auth }) : JSON.stringify({ url });
           const res = await fetch('/api/info', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url }),
+            body,
           });
           const data = await res.json();
           if (data.error) {
+            if (needsAuth(data.error)) hasAuthError = true;
             cardData[idx] = { ...cardData[idx], status: 'info-error', error: data.error };
           } else {
             cardData[idx] = {
@@ -490,9 +679,14 @@
             };
           }
         } catch (err) {
+          if (needsAuth(err.message)) hasAuthError = true;
           cardData[idx] = { ...cardData[idx], status: 'info-error', error: err.message };
         }
         renderCard(idx);
+      }
+
+      if (hasAuthError) {
+        authSection.style.display = 'block';
       }
 
       if (cardData.filter(c => c.status === 'ready').length > 1) {
@@ -513,7 +707,6 @@
         document.getElementById('cards').appendChild(el);
       }
 
-      // Loading skeleton
       if (c.status === 'loading') {
         el.className = 'card';
         el.innerHTML = `
@@ -526,7 +719,6 @@
         return;
       }
 
-      // Error state
       if (c.status === 'info-error') {
         el.className = 'card card-error';
         el.innerHTML = `
@@ -544,7 +736,6 @@
         return;
       }
 
-      // Ready / downloading / done / error states
       el.className = 'card';
       const isAudio = currentFormat === 'audio';
 
@@ -557,16 +748,46 @@
         thumbHtml = `<div class="no-thumb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="8" cy="8" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>`;
       }
 
-      let qualityChips = '';
+      let formatChips = '';
       if (!isAudio && c.formats && c.formats.length > 1) {
-        qualityChips = c.formats.map(f =>
-          `<button class="q-chip${f.id === c.selectedFormatId ? ' active' : ''}" onclick="pickFormat(${idx}, '${f.id}')">${f.label}</button>`
-        ).join('');
+        const byHeight = {};
+        c.formats.forEach(f => {
+          if (!byHeight[f.height]) byHeight[f.height] = [];
+          byHeight[f.height].push(f);
+        });
+        const hasMultipleCodecs = Object.values(byHeight).some(fmts => fmts.length > 1);
+
+        if (hasMultipleCodecs) {
+          const heights = Object.keys(byHeight).map(Number).sort((a, b) => b - a);
+          formatChips = '<div class="format-rows">';
+          heights.forEach(h => {
+            const fmts = byHeight[h];
+            const primary = fmts[0];
+            const isActive = primary.id === c.selectedFormatId;
+            formatChips += `<div class="format-row">`;
+            formatChips += `<button class="q-chip${isActive ? ' active' : ''}" onclick="pickFormat(${idx}, '${primary.id}')">${primary.label}</button>`;
+            if (fmts.length > 1) {
+              formatChips += `<span class="codec-sep">|</span>`;
+              fmts.forEach(f => {
+                const isCodecActive = f.id === c.selectedFormatId;
+                formatChips += `<button class="codec-chip${isCodecActive ? ' active' : ''}" onclick="pickFormat(${idx}, '${f.id}')">${f.codec}</button>`;
+              });
+            }
+            formatChips += `</div>`;
+          });
+          formatChips += '</div>';
+        } else {
+          const sorted = [...c.formats].sort((a, b) => b.height - a.height);
+          formatChips = sorted.map(f => {
+            const active = f.id === c.selectedFormatId ? ' active' : '';
+            return `<button class="q-chip${active}" onclick="pickFormat(${idx}, '${f.id}')">${f.label}</button>`;
+          }).join('');
+        }
       }
 
       let actionHtml = '';
       if (c.status === 'ready') {
-        actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">Download</button>${qualityChips}`;
+        actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">Download</button>${formatChips}`;
       } else if (c.status === 'downloading') {
         actionHtml = `<span class="card-status downloading"><span class="spin"></span> Downloading...</span>`;
       } else if (c.status === 'done') {
@@ -617,7 +838,9 @@
             url: c.url,
             format: currentFormat,
             format_id: c.selectedFormatId,
+            audio_format: currentAudioFormat,
             title: c.title || '',
+            cookie: getAuth(),
           }),
         });
         const data = await res.json();
