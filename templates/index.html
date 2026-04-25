@@ -185,9 +185,11 @@
       border-radius: var(--radius-md);
     }
 
+    .input-wrap { position: relative; }
+
     textarea {
       width: 100%;
-      padding: 18px 20px;
+      padding: 18px 110px 18px 20px;
       border: 2px solid var(--border);
       border-radius: var(--radius-sm);
       background: var(--input-bg);
@@ -203,6 +205,29 @@
     }
     textarea:focus { border-color: var(--fg); }
     textarea::placeholder { color: var(--text-muted); }
+
+    .paste-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-pill);
+      background: var(--btn-secondary-bg);
+      color: var(--btn-secondary-fg);
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.16px;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .paste-btn:hover { opacity: 0.85; }
+    .paste-btn:active { transform: scale(0.97); }
+    .paste-btn svg { width: 14px; height: 14px; }
 
     .hint {
       font-size: 14px;
@@ -526,7 +551,13 @@
     </div>
 
     <div class="form-card">
-      <textarea id="urls" placeholder="Paste one or more URLs..." rows="2"></textarea>
+      <div class="input-wrap">
+        <textarea id="urls" placeholder="Paste one or more URLs..." rows="2"></textarea>
+        <button class="paste-btn" id="pasteBtn" onclick="pasteUrl()" aria-label="Paste from clipboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+          <span>Paste</span>
+        </button>
+      </div>
       <p class="hint">Multiple links? Separate with spaces, commas, or newlines.</p>
 
       <div class="controls">
@@ -534,7 +565,6 @@
           <button class="pill active" data-format="video" onclick="setFormat(this)">MP4</button>
           <button class="pill" data-format="audio" onclick="setFormat(this)">MP3</button>
         </div>
-        <button class="btn-secondary" id="pasteBtn" onclick="pasteUrl()">Paste</button>
         <button class="btn-primary" id="goBtn" onclick="go()">Fetch</button>
       </div>
 
