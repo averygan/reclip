@@ -59,7 +59,7 @@ def run_download(job_id, url, format_choice, format_id):
         job["file"] = chosen
         ext = os.path.splitext(chosen)[1]
         title = job.get("title", "").strip()
-        # Sanitize title for filename
+        # Sanitize title for filename — only allow safe characters, strip path separators
         if title:
             safe_title = "".join(c for c in title if c not in r'\/:*?"<>|').strip()[:20].strip()
             job["filename"] = f"{safe_title}{ext}" if safe_title else os.path.basename(chosen)
@@ -162,7 +162,13 @@ def download_file(job_id):
     job = jobs.get(job_id)
     if not job or job["status"] != "done":
         return jsonify({"error": "File not ready"}), 404
-    return send_file(job["file"], as_attachment=True, download_name=job["filename"])
+    file_path = job["file"]
+    # Ensure the file is actually within DOWNLOAD_DIR to prevent path traversal
+    real_path = os.path.realpath(file_path)
+    real_download_dir = os.path.realpath(DOWNLOAD_DIR)
+    if not real_path.startswith(real_download_dir + os.sep):
+        return jsonify({"error": "Invalid file path"}), 403
+    return send_file(file_path, as_attachment=True, download_name=job["filename"])
 
 
 if __name__ == "__main__":
