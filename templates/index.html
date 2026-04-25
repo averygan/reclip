@@ -534,6 +534,7 @@
           <button class="pill active" data-format="video" onclick="setFormat(this)">MP4</button>
           <button class="pill" data-format="audio" onclick="setFormat(this)">MP3</button>
         </div>
+        <button class="btn-secondary" id="pasteBtn" onclick="pasteUrl()">Paste</button>
         <button class="btn-primary" id="goBtn" onclick="go()">Fetch</button>
       </div>
 
@@ -603,6 +604,19 @@
       const next = cur === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', next);
       localStorage.setItem('cliper-theme', next);
+    }
+
+    async function pasteUrl() {
+      const ta = document.getElementById('urls');
+      try {
+        const text = (await navigator.clipboard.readText()).trim();
+        if (!text) return;
+        ta.value = ta.value.trim() ? ta.value.trimEnd() + '\n' + text : text;
+        ta.focus();
+        ta.setSelectionRange(ta.value.length, ta.value.length);
+      } catch {
+        ta.focus();
+      }
     }
 
     function setFormat(btn) {
