@@ -69,7 +69,7 @@ this app only:
 xattr -dr com.apple.quarantine /Applications/ReClip.app
 ```
 
-### Manual run
+### Run locally in a browser
 
 ```bash
 brew install yt-dlp ffmpeg    # or apt install ffmpeg && pip install yt-dlp
@@ -80,18 +80,10 @@ cd ReClip
 
 Open **http://localhost:8899**.
 
-On macOS, you can also launch the native app wrapper:
+### Build your own macOS app
 
 ```bash
-open ReClip.app
-```
-
-The native wrapper uses the same Flask app and project virtual environment, so
-`yt-dlp` and `certifi` are installed together.
-
-To build a standalone macOS app bundle:
-
-```bash
+brew install python3 ffmpeg
 ./build-macos-app.sh
 open dist/ReClip.app
 ```
@@ -99,7 +91,7 @@ open dist/ReClip.app
 The standalone build bundles Python dependencies and the local `ffmpeg` binary.
 It is not codesigned or notarized.
 
-Or with Docker:
+### Run with Docker
 
 ```bash
 docker build -t reclip . && docker run -p 8899:8899 reclip
