@@ -45,5 +45,6 @@ export PATH="$PWD/venv/bin:$PATH"
 
 echo ""
 echo "  ReClip is running at http://localhost:$PORT"
+echo "  Downloads: ${RECLIP_DOWNLOAD_DIR:-saved app setting}"
 echo ""
 python3 app.py

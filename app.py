@@ -1,11 +1,14 @@
 import os
-import uuid
 import glob
+import json
 import shutil
+import subprocess
 import sys
 import threading
+from urllib.parse import urlparse
 from flask import Flask, request, jsonify, send_file, render_template
 from yt_dlp import YoutubeDL
+from job_manager import DownloadCancelled, JobManager
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -68,9 +71,59 @@ DOWNLOAD_DIR = os.environ.get(
     if getattr(sys, "frozen", False)
     else os.path.join(APP_DIR, "downloads"),
 )
-os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+CONFIG_PATH = os.path.join(os.path.expanduser("~"), ".reclip", "config.json")
+TEMP_DOWNLOAD_DIR = os.path.join(APP_DIR, "downloads")
 
-jobs = {}
+
+def _load_download_dir():
+    if os.environ.get("RECLIP_DOWNLOAD_DIR"):
+        return os.environ["RECLIP_DOWNLOAD_DIR"]
+    try:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+            configured = json.load(f).get("download_dir")
+        if isinstance(configured, str) and configured.strip():
+            return os.path.expanduser(configured)
+    except (OSError, ValueError, TypeError):
+        pass
+    return DOWNLOAD_DIR
+
+
+def _set_download_dir(path):
+    global DOWNLOAD_DIR
+    if not isinstance(path, str) or not path.strip():
+        raise ValueError("Download folder cannot be empty")
+    path = os.path.abspath(os.path.expanduser(path))
+    os.makedirs(path, exist_ok=True)
+    os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump({"download_dir": path}, f)
+    DOWNLOAD_DIR = path
+    return DOWNLOAD_DIR
+
+
+DOWNLOAD_DIR = _load_download_dir()
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+os.makedirs(TEMP_DOWNLOAD_DIR, exist_ok=True)
+
+jobs = JobManager()
+
+
+def _request_data():
+    return request.get_json(silent=True) or {}
+
+
+def _string_field(data, key, default=""):
+    value = data.get(key, default)
+    return value.strip() if isinstance(value, str) else default
+
+
+def _clean_old_jobs():
+    jobs.prune_terminal()
+
+
+def _valid_url(url):
+    parsed = urlparse(url)
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
 
 
 def _ffmpeg_location():
@@ -96,14 +149,73 @@ def _yt_dlp_options(**extra):
     return opts
 
 
+def _format_filename(title, chosen):
+    ext = os.path.splitext(chosen)[1]
+    title = title.strip()
+    if not title:
+        return os.path.basename(chosen)
+
+    safe_title = "".join(c for c in title if c not in r'\/:*?"<>|').strip()[:120].strip()
+    return f"{safe_title}{ext}" if safe_title else os.path.basename(chosen)
+
+
+def _unique_destination(filename):
+    target = os.path.join(DOWNLOAD_DIR, filename)
+    if not os.path.exists(target):
+        return target, filename
+
+    stem, ext = os.path.splitext(filename)
+    counter = 2
+    while True:
+        candidate_name = f"{stem} ({counter}){ext}"
+        candidate = os.path.join(DOWNLOAD_DIR, candidate_name)
+        if not os.path.exists(candidate):
+            return candidate, candidate_name
+        counter += 1
+
+
+def _cleanup_job_files(job_id, keep=None):
+    for file_path in glob.glob(os.path.join(TEMP_DOWNLOAD_DIR, f"{job_id}.*")):
+        if file_path == keep:
+            continue
+        try:
+            os.remove(file_path)
+        except OSError:
+            pass
+
+
+def _progress_hook(job_id):
+    def hook(data):
+        if jobs.is_cancelled(job_id):
+            raise DownloadCancelled()
+
+        if data.get("status") != "downloading":
+            return
+
+        total = data.get("total_bytes") or data.get("total_bytes_estimate")
+        downloaded = data.get("downloaded_bytes") or 0
+        percent = int(downloaded * 100 / total) if total else 0
+        jobs.update_progress(job_id, {
+            "progress": min(percent, 99),
+            "downloaded_bytes": downloaded,
+            "total_bytes": total,
+            "speed": data.get("speed"),
+            "eta": data.get("eta"),
+        })
+
+    return hook
+
+
 def run_download(job_id, url, format_choice, format_id):
-    job = jobs[job_id]
-    out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}.%(ext)s")
+    os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+    os.makedirs(TEMP_DOWNLOAD_DIR, exist_ok=True)
+    out_template = os.path.join(TEMP_DOWNLOAD_DIR, f"{job_id}.%(ext)s")
 
     if format_choice == "audio":
         ydl_opts = _yt_dlp_options(
             outtmpl=out_template,
             format="bestaudio/best",
+            progress_hooks=[_progress_hook(job_id)],
             postprocessors=[{
                 "key": "FFmpegExtractAudio",
                 "preferredcodec": "mp3",
@@ -114,22 +226,27 @@ def run_download(job_id, url, format_choice, format_id):
             outtmpl=out_template,
             format=f"{format_id}+bestaudio/best",
             merge_output_format="mp4",
+            progress_hooks=[_progress_hook(job_id)],
         )
     else:
         ydl_opts = _yt_dlp_options(
             outtmpl=out_template,
             format="bestvideo+bestaudio/best",
             merge_output_format="mp4",
+            progress_hooks=[_progress_hook(job_id)],
         )
 
     try:
         with YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
 
-        files = glob.glob(os.path.join(DOWNLOAD_DIR, f"{job_id}.*"))
+        if jobs.is_cancelled(job_id):
+            _cleanup_job_files(job_id)
+            return
+
+        files = glob.glob(os.path.join(TEMP_DOWNLOAD_DIR, f"{job_id}.*"))
         if not files:
-            job["status"] = "error"
-            job["error"] = "Download completed but no file was found"
+            jobs.mark_error(job_id, "Download completed but no file was found")
             return
 
         if format_choice == "audio":
@@ -139,26 +256,21 @@ def run_download(job_id, url, format_choice, format_id):
             target = [f for f in files if f.endswith(".mp4")]
             chosen = target[0] if target else files[0]
 
-        for f in files:
-            if f != chosen:
-                try:
-                    os.remove(f)
-                except OSError:
-                    pass
+        job = jobs.snapshot(job_id) or {}
+        final_name = _format_filename(job.get("title", ""), chosen)
+        final_path, final_name = _unique_destination(final_name)
+        shutil.move(chosen, final_path)
+        _cleanup_job_files(job_id)
 
-        job["status"] = "done"
-        job["file"] = chosen
-        ext = os.path.splitext(chosen)[1]
-        title = job.get("title", "").strip()
-        # Sanitize title for filename
-        if title:
-            safe_title = "".join(c for c in title if c not in r'\/:*?"<>|').strip()[:20].strip()
-            job["filename"] = f"{safe_title}{ext}" if safe_title else os.path.basename(chosen)
-        else:
-            job["filename"] = os.path.basename(chosen)
+        if not jobs.mark_done(job_id, final_path, final_name):
+            try:
+                os.remove(final_path)
+            except OSError:
+                pass
+    except DownloadCancelled:
+        _cleanup_job_files(job_id)
     except Exception as e:
-        job["status"] = "error"
-        job["error"] = str(e)
+        jobs.mark_error(job_id, str(e))
 
 
 @app.route("/")
@@ -166,12 +278,66 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/api/config")
+def get_config():
+    return jsonify({"download_dir": DOWNLOAD_DIR})
+
+
+@app.route("/api/select-folder", methods=["POST"])
+def select_folder():
+    script = (
+        'POSIX path of (choose folder with prompt '
+        '"Choose where ReClip should save downloads")'
+    )
+    try:
+        result = subprocess.run(
+            ["osascript", "-e", script],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            return jsonify({"cancelled": True, "download_dir": DOWNLOAD_DIR})
+        chosen = result.stdout.strip()
+        if not chosen:
+            return jsonify({"cancelled": True, "download_dir": DOWNLOAD_DIR})
+        return jsonify({"download_dir": _set_download_dir(chosen)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/open-folder", methods=["POST"])
+def open_folder():
+    os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+    try:
+        subprocess.Popen(["open", DOWNLOAD_DIR])
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/reveal/<job_id>", methods=["POST"])
+def reveal_file(job_id):
+    job = jobs.snapshot(job_id)
+    file_path = job.get("file") if job else None
+    if not file_path or not os.path.isfile(file_path):
+        return jsonify({"error": "File not found"}), 404
+    try:
+        subprocess.Popen(["open", "-R", file_path])
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/info", methods=["POST"])
 def get_info():
-    data = request.json
-    url = data.get("url", "").strip()
+    _clean_old_jobs()
+    data = _request_data()
+    url = _string_field(data, "url")
     if not url:
         return jsonify({"error": "No URL provided"}), 400
+    if not _valid_url(url):
+        return jsonify({"error": "Only http(s) URLs are supported"}), 400
 
     try:
         with YoutubeDL(_yt_dlp_options(skip_download=True)) as ydl:
@@ -208,17 +374,25 @@ def get_info():
 
 @app.route("/api/download", methods=["POST"])
 def start_download():
-    data = request.json
-    url = data.get("url", "").strip()
-    format_choice = data.get("format", "video")
+    _clean_old_jobs()
+    data = _request_data()
+    url = _string_field(data, "url")
+    format_choice = _string_field(data, "format", "video")
     format_id = data.get("format_id")
     title = data.get("title", "")
 
     if not url:
         return jsonify({"error": "No URL provided"}), 400
+    if not _valid_url(url):
+        return jsonify({"error": "Only http(s) URLs are supported"}), 400
+    if format_choice not in {"video", "audio"}:
+        return jsonify({"error": "Format must be video or audio"}), 400
+    if format_id is not None and not isinstance(format_id, str):
+        return jsonify({"error": "format_id must be a string"}), 400
+    if not isinstance(title, str):
+        title = ""
 
-    job_id = uuid.uuid4().hex[:10]
-    jobs[job_id] = {"status": "downloading", "url": url, "title": title}
+    job_id = jobs.create(url, title)
 
     thread = threading.Thread(target=run_download, args=(job_id, url, format_choice, format_id))
     thread.daemon = True
@@ -229,19 +403,31 @@ def start_download():
 
 @app.route("/api/status/<job_id>")
 def check_status(job_id):
-    job = jobs.get(job_id)
+    _clean_old_jobs()
+    job = jobs.snapshot(job_id)
     if not job:
         return jsonify({"error": "Job not found"}), 404
     return jsonify({
         "status": job["status"],
+        "progress": job.get("progress", 0),
+        "speed": job.get("speed"),
+        "eta": job.get("eta"),
         "error": job.get("error"),
         "filename": job.get("filename"),
     })
 
 
+@app.route("/api/cancel/<job_id>", methods=["POST"])
+def cancel_download(job_id):
+    job = jobs.cancel(job_id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+    return jsonify({"status": job["status"]})
+
+
 @app.route("/api/file/<job_id>")
 def download_file(job_id):
-    job = jobs.get(job_id)
+    job = jobs.snapshot(job_id)
     if not job or job["status"] != "done":
         return jsonify({"error": "File not ready"}), 404
     return send_file(job["file"], as_attachment=True, download_name=job["filename"])

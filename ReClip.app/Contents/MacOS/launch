@@ -33,8 +33,6 @@ source venv/bin/activate
 pip install -q -r requirements.txt
 
 export PATH="$APP_DIR/venv/bin:$PATH"
-export RECLIP_DOWNLOAD_DIR="${RECLIP_DOWNLOAD_DIR:-$HOME/Downloads/ReClip}"
-mkdir -p "$RECLIP_DOWNLOAD_DIR"
 export PORT
 
 exec python3 "$APP_DIR/native.py"
