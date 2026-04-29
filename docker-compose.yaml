@@ -1,0 +1,6 @@
+services:
+  reclip:
+    image: reclip
+    build: .
+    ports: [ 8899:8899 ]
+    command: python app.py
