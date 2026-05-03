@@ -477,6 +477,39 @@
           const data = await res.json();
           if (data.error) {
             cardData[idx] = { ...cardData[idx], status: 'info-error', error: data.error };
+          } else if (data.multiple) {
+            // Multi-video post: replace loading card with first video, add rest
+            const videos = data.videos;
+            const postUrl = data.url || url;
+            cardData[idx] = {
+              ...cardData[idx],
+              status: 'ready',
+              title: videos[0].title || '',
+              thumbnail: videos[0].thumbnail || '',
+              duration: videos[0].duration,
+              uploader: videos[0].uploader || '',
+              formats: videos[0].formats || [],
+              selectedFormatId: videos[0].formats?.[0]?.id || null,
+              downloadUrl: postUrl,
+              playlistIndex: videos[0].playlist_index,
+            };
+            renderCard(idx);
+            for (let v = 1; v < videos.length; v++) {
+              const extraIdx = cardData.length;
+              cardData.push({
+                url: postUrl,
+                status: 'ready',
+                title: videos[v].title || '',
+                thumbnail: videos[v].thumbnail || '',
+                duration: videos[v].duration,
+                uploader: videos[v].uploader || '',
+                formats: videos[v].formats || [],
+                selectedFormatId: videos[v].formats?.[0]?.id || null,
+                downloadUrl: postUrl,
+                playlistIndex: videos[v].playlist_index,
+              });
+              renderCard(extraIdx);
+            }
           } else {
             cardData[idx] = {
               ...cardData[idx],
@@ -581,7 +614,7 @@
         <div class="card-thumb">${thumbHtml}</div>
         <div class="card-body">
           <div class="card-title">${esc(c.title || 'Untitled')}</div>
-          <div class="card-meta">${esc(c.uploader)}${c.duration ? ' · ' + fmtDur(c.duration) : ''}</div>
+          <div class="card-meta">${esc(c.uploader)}${c.duration ? ' · ' + fmtDur(c.duration) : ''}${c.playlistIndex ? ' · Video ' + c.playlistIndex : ''}</div>
           <div class="card-actions">${actionHtml}</div>
         </div>
       `;
@@ -610,15 +643,17 @@
       renderCard(idx);
 
       try {
+        const payload = {
+          url: c.downloadUrl || c.url,
+          format: currentFormat,
+          format_id: c.selectedFormatId,
+          title: c.title || '',
+        };
+        if (c.playlistIndex) payload.playlist_index = c.playlistIndex;
         const res = await fetch('/api/download', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            url: c.url,
-            format: currentFormat,
-            format_id: c.selectedFormatId,
-            title: c.title || '',
-          }),
+          body: JSON.stringify(payload),
         });
         const data = await res.json();
         if (data.error) {

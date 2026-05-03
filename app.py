@@ -13,11 +13,15 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 jobs = {}
 
 
-def run_download(job_id, url, format_choice, format_id):
+def run_download(job_id, url, format_choice, format_id, playlist_index=None):
     job = jobs[job_id]
     out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}.%(ext)s")
 
-    cmd = ["yt-dlp", "--no-playlist", "-o", out_template]
+    cmd = ["yt-dlp", "-o", out_template]
+    if playlist_index:
+        cmd += ["--playlist-items", str(playlist_index)]
+    else:
+        cmd += ["--no-playlist"]
 
     if format_choice == "audio":
         cmd += ["-x", "--audio-format", "mp3"]
@@ -91,33 +95,45 @@ def get_info():
         if result.returncode != 0:
             return jsonify({"error": result.stderr.strip().split("\n")[-1]}), 400
 
-        info = json.loads(result.stdout)
+        # yt-dlp outputs one JSON object per line for multi-video posts
+        lines = [l for l in result.stdout.strip().splitlines() if l.strip()]
+        entries = [json.loads(line) for line in lines]
 
-        # Build quality options — keep best format per resolution
-        best_by_height = {}
-        for f in info.get("formats", []):
-            height = f.get("height")
-            if height and f.get("vcodec", "none") != "none":
-                tbr = f.get("tbr") or 0
-                if height not in best_by_height or tbr > (best_by_height[height].get("tbr") or 0):
-                    best_by_height[height] = f
+        def extract_info(info):
+            best_by_height = {}
+            for f in info.get("formats", []):
+                height = f.get("height")
+                if height and f.get("vcodec", "none") != "none":
+                    tbr = f.get("tbr") or 0
+                    if height not in best_by_height or tbr > (best_by_height[height].get("tbr") or 0):
+                        best_by_height[height] = f
 
-        formats = []
-        for height, f in best_by_height.items():
-            formats.append({
-                "id": f["format_id"],
-                "label": f"{height}p",
-                "height": height,
-            })
-        formats.sort(key=lambda x: x["height"], reverse=True)
+            formats = []
+            for height, f in best_by_height.items():
+                formats.append({
+                    "id": f["format_id"],
+                    "label": f"{height}p",
+                    "height": height,
+                })
+            formats.sort(key=lambda x: x["height"], reverse=True)
 
-        return jsonify({
-            "title": info.get("title", ""),
-            "thumbnail": info.get("thumbnail", ""),
-            "duration": info.get("duration"),
-            "uploader": info.get("uploader", ""),
-            "formats": formats,
-        })
+            return {
+                "title": info.get("title", ""),
+                "thumbnail": info.get("thumbnail", ""),
+                "duration": info.get("duration"),
+                "uploader": info.get("uploader", ""),
+                "formats": formats,
+            }
+
+        if len(entries) == 1:
+            return jsonify(extract_info(entries[0]))
+        else:
+            videos = []
+            for i, e in enumerate(entries):
+                v = extract_info(e)
+                v["playlist_index"] = i + 1
+                videos.append(v)
+            return jsonify({"multiple": True, "videos": videos, "url": url})
     except subprocess.TimeoutExpired:
         return jsonify({"error": "Timed out fetching video info"}), 400
     except Exception as e:
@@ -131,6 +147,7 @@ def start_download():
     format_choice = data.get("format", "video")
     format_id = data.get("format_id")
     title = data.get("title", "")
+    playlist_index = data.get("playlist_index")
 
     if not url:
         return jsonify({"error": "No URL provided"}), 400
@@ -138,7 +155,7 @@ def start_download():
     job_id = uuid.uuid4().hex[:10]
     jobs[job_id] = {"status": "downloading", "url": url, "title": title}
 
-    thread = threading.Thread(target=run_download, args=(job_id, url, format_choice, format_id))
+    thread = threading.Thread(target=run_download, args=(job_id, url, format_choice, format_id, playlist_index))
     thread.daemon = True
     thread.start()
 
