@@ -32,7 +32,7 @@ def test_info_rejects_invalid_json(tmp_path, monkeypatch):
     assert res.get_json()["error"] == "No URL provided"
 
 
-def test_info_returns_best_format_per_height(tmp_path, monkeypatch):
+def test_info_returns_heights_with_labels_and_size_estimates(tmp_path, monkeypatch):
     client = make_client(tmp_path, monkeypatch)
 
     class FakeYDL:
@@ -52,10 +52,21 @@ def test_info_returns_best_format_per_height(tmp_path, monkeypatch):
                 "duration": 65,
                 "uploader": "Uploader",
                 "formats": [
-                    {"format_id": "low", "height": 720, "tbr": 1000, "vcodec": "avc1"},
-                    {"format_id": "best", "height": 720, "tbr": 2000, "vcodec": "avc1"},
-                    {"format_id": "audio", "tbr": 100, "vcodec": "none"},
-                    {"format_id": "hd", "height": 1080, "tbr": 3000, "vcodec": "avc1"},
+                    # 8K — single format, exact filesize
+                    {"format_id": "8k", "height": 4320, "vcodec": "av01", "filesize": 4_500_000_000},
+                    # 4K — two video formats; size estimate must be the max across both,
+                    # mixing filesize and filesize_approx
+                    {"format_id": "4k-low", "height": 2160, "vcodec": "avc1", "filesize": 800_000_000},
+                    {"format_id": "4k-hi",  "height": 2160, "vcodec": "av01", "filesize_approx": 900_000_000},
+                    # 1080
+                    {"format_id": "fhd", "height": 1080, "vcodec": "avc1", "filesize": 350_000_000},
+                    # 720 — no size info at all
+                    {"format_id": "hd", "height": 720, "vcodec": "avc1"},
+                    # Audio-only formats — must be filtered out (no height / vcodec=none)
+                    {"format_id": "audio1", "vcodec": "none", "acodec": "mp4a", "filesize": 5_000_000},
+                    {"format_id": "audio2", "vcodec": "none", "acodec": "opus", "filesize": 4_000_000},
+                    # Format with no height — must be filtered out
+                    {"format_id": "weird", "vcodec": "avc1", "filesize": 1_000_000},
                 ],
             }
 
@@ -64,9 +75,47 @@ def test_info_returns_best_format_per_height(tmp_path, monkeypatch):
     res = client.post("/api/info", json={"url": "https://example.com/watch?v=1"})
 
     assert res.status_code == 200
+    body = res.get_json()
+    assert body["title"] == "Demo"
+    assert body["formats"] == [
+        {"height": 4320, "label": "8K (4320p)",     "filesize": 4_500_000_000},
+        {"height": 2160, "label": "4K (2160p)",     "filesize": 900_000_000},
+        {"height": 1080, "label": "Full HD (1080p)", "filesize": 350_000_000},
+        {"height": 720,  "label": "HD (720p)",      "filesize": None},
+    ]
+
+
+def test_info_includes_irregular_heights_with_raw_label(tmp_path, monkeypatch):
+    # Future-proofs sources that report non-standard heights (e.g. 3072 instead of 2160).
+    client = make_client(tmp_path, monkeypatch)
+
+    class FakeYDL:
+        def __init__(self, opts):
+            self.opts = opts
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def extract_info(self, url, download):
+            return {
+                "title": "Irregular",
+                "formats": [
+                    {"format_id": "weird", "height": 3072, "vcodec": "avc1"},
+                    {"format_id": "fhd",   "height": 1080, "vcodec": "avc1"},
+                ],
+            }
+
+    monkeypatch.setattr(reclip_app, "YoutubeDL", FakeYDL)
+
+    res = client.post("/api/info", json={"url": "https://example.com/watch?v=2"})
+
+    assert res.status_code == 200
     assert res.get_json()["formats"] == [
-        {"id": "hd", "label": "1080p", "height": 1080},
-        {"id": "best", "label": "720p", "height": 720},
+        {"height": 3072, "label": "3072p",          "filesize": None},
+        {"height": 1080, "label": "Full HD (1080p)", "filesize": None},
     ]
 
 
@@ -226,3 +275,109 @@ def test_cancel_marks_active_job_cancelled(tmp_path, monkeypatch):
 
     assert res.status_code == 200
     assert res.get_json()["status"] == "cancelled"
+
+
+class CapturingYDL:
+    """Records ydl_opts for assertion; writes a fake file so run_download completes."""
+    captured = {}
+    written_ext = "mp4"
+
+    def __init__(self, opts):
+        CapturingYDL.captured["opts"] = opts
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def download(self, urls):
+        outtmpl = CapturingYDL.captured["opts"]["outtmpl"]
+        file_path = outtmpl.replace("%(ext)s", CapturingYDL.written_ext)
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, "wb") as f:
+            f.write(b"data")
+
+
+def _setup_capturing_download(tmp_path, monkeypatch, ext="mp4"):
+    client = make_client(tmp_path, monkeypatch)
+    CapturingYDL.captured = {}
+    CapturingYDL.written_ext = ext
+    monkeypatch.setattr(reclip_app, "YoutubeDL", CapturingYDL)
+    monkeypatch.setattr(reclip_app.threading, "Thread", InlineThread)
+    return client
+
+
+def test_download_accepts_max_height_and_passes_capped_format_string(tmp_path, monkeypatch):
+    client = _setup_capturing_download(tmp_path, monkeypatch)
+
+    res = client.post(
+        "/api/download",
+        json={
+            "url": "https://example.com/video",
+            "format": "video",
+            "max_height": 2160,
+            "title": "Demo",
+        },
+    )
+
+    assert res.status_code == 200
+    assert CapturingYDL.captured["opts"]["format"] == "bv*[height<=2160]+ba/b[height<=2160]"
+
+
+def test_download_without_max_height_uses_best_available(tmp_path, monkeypatch):
+    client = _setup_capturing_download(tmp_path, monkeypatch)
+
+    res = client.post(
+        "/api/download",
+        json={"url": "https://example.com/video", "format": "video", "title": "Demo"},
+    )
+
+    assert res.status_code == 200
+    assert CapturingYDL.captured["opts"]["format"] == "bv*+ba/b"
+
+
+def test_download_with_explicit_null_max_height_uses_best_available(tmp_path, monkeypatch):
+    client = _setup_capturing_download(tmp_path, monkeypatch)
+
+    res = client.post(
+        "/api/download",
+        json={
+            "url": "https://example.com/video",
+            "format": "video",
+            "max_height": None,
+            "title": "Demo",
+        },
+    )
+
+    assert res.status_code == 200
+    assert CapturingYDL.captured["opts"]["format"] == "bv*+ba/b"
+
+
+def test_download_audio_ignores_max_height(tmp_path, monkeypatch):
+    client = _setup_capturing_download(tmp_path, monkeypatch, ext="mp3")
+
+    res = client.post(
+        "/api/download",
+        json={
+            "url": "https://example.com/audio",
+            "format": "audio",
+            "max_height": 720,
+            "title": "Audio",
+        },
+    )
+
+    assert res.status_code == 200
+    assert CapturingYDL.captured["opts"]["format"] == "bestaudio/best"
+
+
+def test_download_rejects_invalid_max_height(tmp_path, monkeypatch):
+    client = make_client(tmp_path, monkeypatch)
+
+    for bad in [0, -100, "1080", 1.5, [], {}]:
+        res = client.post(
+            "/api/download",
+            json={"url": "https://example.com/video", "format": "video", "max_height": bad},
+        )
+        assert res.status_code == 400, f"expected 400 for max_height={bad!r}"
+        assert "max_height" in res.get_json()["error"].lower()
