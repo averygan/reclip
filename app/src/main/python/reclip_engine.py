@@ -2,15 +2,65 @@
 ReClip Engine — runs yt-dlp directly on the Android device.
 Called from Java/Kotlin via Chaquopy. No server, no network service.
 All processing happens in-process on the device.
+
+FFmpeg is bundled inside the APK as a native library (libffmpeg.so).
+The Java layer locates it and passes the directory path here via set_ffmpeg_path().
 """
 
 import json
 import os
 import traceback
 
-# yt-dlp is installed via Chaquopy pip
 import yt_dlp
 
+
+# ── FFmpeg path management ──
+# Set by Java bridge on startup; points to the directory containing
+# the bundled libffmpeg.so and libffprobe.so binaries.
+_ffmpeg_dir = None
+
+
+def set_ffmpeg_path(directory):
+    """Called from Java to tell us where the bundled ffmpeg lives."""
+    global _ffmpeg_dir
+    _ffmpeg_dir = directory
+
+    # yt-dlp looks for executables named 'ffmpeg' and 'ffprobe'.
+    # Android bundles them as 'libffmpeg.so' and 'libffprobe.so' in nativeLibraryDir.
+    # We create symlinks with the expected names so yt-dlp finds them.
+    if directory and os.path.isdir(directory):
+        _ensure_symlink(os.path.join(directory, 'libffmpeg.so'),
+                        os.path.join(directory, 'ffmpeg'))
+        _ensure_symlink(os.path.join(directory, 'libffprobe.so'),
+                        os.path.join(directory, 'ffprobe'))
+
+
+def _ensure_symlink(src, dst):
+    """Create symlink dst -> src if src exists and dst doesn't."""
+    try:
+        if os.path.exists(src) and not os.path.exists(dst):
+            os.symlink(src, dst)
+    except OSError:
+        # nativeLibraryDir may be read-only on some devices.
+        # Fall back: yt-dlp can also find binaries by full path.
+        pass
+
+
+def _get_ffmpeg_opts():
+    """Return yt-dlp options dict for ffmpeg location."""
+    if _ffmpeg_dir:
+        # First try symlinked name
+        ffmpeg_path = os.path.join(_ffmpeg_dir, 'ffmpeg')
+        if os.path.exists(ffmpeg_path):
+            return {'ffmpeg_location': _ffmpeg_dir}
+        # Fall back to .so name directly
+        so_path = os.path.join(_ffmpeg_dir, 'libffmpeg.so')
+        if os.path.exists(so_path):
+            return {'ffmpeg_location': so_path}
+    return {}
+
+
+# ── Video Info ──
 
 def get_info(url):
     """
@@ -24,6 +74,7 @@ def get_info(url):
             'noplaylist': True,
             'skip_download': True,
         }
+        ydl_opts.update(_get_ffmpeg_opts())
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
@@ -67,6 +118,8 @@ def get_info(url):
         })
 
 
+# ── Download ──
+
 def download_media(url, output_dir, format_choice='video', format_id=None, title=''):
     """
     Download video/audio to the specified directory.
@@ -98,6 +151,9 @@ def download_media(url, output_dir, format_choice='video', format_id=None, title
             'progress_hooks': [_progress_hook],
         }
 
+        # Apply bundled ffmpeg location
+        ydl_opts.update(_get_ffmpeg_opts())
+
         if format_choice == 'audio':
             ydl_opts['format'] = 'bestaudio/best'
             ydl_opts['postprocessors'] = [{
@@ -112,17 +168,6 @@ def download_media(url, output_dir, format_choice='video', format_id=None, title
             ydl_opts['format'] = 'bestvideo+bestaudio/best'
             ydl_opts['merge_output_format'] = 'mp4'
 
-        # ffmpeg location — Chaquopy bundles it or we use system
-        # Try common Android locations
-        ffmpeg_paths = [
-            '/data/data/com.reclip.app/files/ffmpeg',
-            '/system/bin/ffmpeg',
-        ]
-        for fp in ffmpeg_paths:
-            if os.path.exists(fp):
-                ydl_opts['ffmpeg_location'] = fp
-                break
-
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
@@ -134,7 +179,6 @@ def download_media(url, output_dir, format_choice='video', format_id=None, title
 
             # Find the actual file (yt-dlp may have changed the name)
             if not os.path.exists(filename):
-                # Search for files matching the safe_title
                 for f in os.listdir(output_dir):
                     if f.startswith(safe_title):
                         filename = os.path.join(output_dir, f)
@@ -162,7 +206,8 @@ def download_media(url, output_dir, format_choice='video', format_id=None, title
         })
 
 
-# Global progress state — read by the Java bridge
+# ── Progress tracking ──
+
 _current_progress = {'percent': 0, 'speed': '', 'eta': '', 'status': 'idle'}
 
 
@@ -201,13 +246,28 @@ def reset_progress():
     _current_progress = {'percent': 0, 'speed': '', 'eta': '', 'status': 'idle'}
 
 
+# ── Dependency check ──
+
 def check_dependencies():
-    """Verify yt-dlp is available and return version info."""
+    """Verify yt-dlp and ffmpeg are available. Returns version info."""
     try:
-        version = yt_dlp.version.__version__
+        ytdlp_version = yt_dlp.version.__version__
+
+        ffmpeg_available = False
+        ffmpeg_path_found = ''
+        if _ffmpeg_dir:
+            for name in ['ffmpeg', 'libffmpeg.so']:
+                p = os.path.join(_ffmpeg_dir, name)
+                if os.path.exists(p):
+                    ffmpeg_available = True
+                    ffmpeg_path_found = p
+                    break
+
         return json.dumps({
             'success': True,
-            'yt_dlp_version': version,
+            'yt_dlp_version': ytdlp_version,
+            'ffmpeg_available': ffmpeg_available,
+            'ffmpeg_path': ffmpeg_path_found,
         })
     except Exception as e:
         return json.dumps({

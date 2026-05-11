@@ -137,6 +137,11 @@ public class MainActivity extends AppCompatActivity {
                 try {
                     Python py = Python.getInstance();
                     PyObject engine = py.getModule("reclip_engine");
+                    // Pass ffmpeg path so yt-dlp can find it
+                    String ffmpegDir = getFFmpegDir();
+                    if (ffmpegDir != null) {
+                        engine.callAttr("set_ffmpeg_path", ffmpegDir);
+                    }
                     PyObject result = engine.callAttr("get_info", url);
                     String json = result.toString();
                     postToWebView("window._nativeCallback('" + callbackId + "', " + json + ");");
@@ -154,6 +159,11 @@ public class MainActivity extends AppCompatActivity {
                 try {
                     Python py = Python.getInstance();
                     PyObject engine = py.getModule("reclip_engine");
+                    // Pass ffmpeg path so yt-dlp can find it
+                    String ffmpegDir = getFFmpegDir();
+                    if (ffmpegDir != null) {
+                        engine.callAttr("set_ffmpeg_path", ffmpegDir);
+                    }
                     engine.callAttr("reset_progress");
 
                     // Download to app cache first, then move to Downloads
@@ -294,12 +304,29 @@ public class MainActivity extends AppCompatActivity {
             try {
                 Python py = Python.getInstance();
                 PyObject engine = py.getModule("reclip_engine");
+                // Set ffmpeg path before checking
+                String ffmpegDir = getFFmpegDir();
+                if (ffmpegDir != null) {
+                    engine.callAttr("set_ffmpeg_path", ffmpegDir);
+                }
                 return engine.callAttr("check_dependencies").toString();
             } catch (Exception e) {
                 return "{\"success\":false,\"error\":\"" +
                     e.getMessage().replace("\"", "\\\"") + "\"}";
             }
         }
+    }
+
+    /**
+     * Returns the directory containing the bundled ffmpeg binary,
+     * or null if not found. yt-dlp's ffmpeg_location option takes a directory.
+     */
+    private String getFFmpegDir() {
+        String path = ReClipApplication.getFFmpegPath();
+        if (path != null) {
+            return new File(path).getParent();
+        }
+        return null;
     }
 
     private void postToWebView(String js) {

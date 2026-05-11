@@ -822,7 +822,11 @@
       try {
         const status = JSON.parse(ReClip.checkEngine());
         if (status.success) {
-          document.getElementById('engineLabel').textContent = 'yt-dlp ' + status.yt_dlp_version;
+          const ffLabel = status.ffmpeg_available ? ' + ffmpeg' : ' (no ffmpeg)';
+          document.getElementById('engineLabel').textContent = 'yt-dlp ' + status.yt_dlp_version + ffLabel;
+          if (!status.ffmpeg_available) {
+            document.getElementById('engineDot').style.background = '#ffaa00';
+          }
         } else {
           document.getElementById('engineDot').style.background = '#ff3d5a';
           document.getElementById('engineLabel').textContent = 'Error';

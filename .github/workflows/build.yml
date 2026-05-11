@@ -2,19 +2,76 @@ name: Build ReClip APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, android ]
   pull_request:
-    branches: [ main ]
-  workflow_dispatch:  # Manual trigger from GitHub UI
+    branches: [ main, android ]
+  workflow_dispatch:
 
 jobs:
-  build:
+  build-ffmpeg:
+    name: Build FFmpeg binaries
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Cache FFmpeg build
+        id: cache-ffmpeg
+        uses: actions/cache@v4
+        with:
+          path: app/src/main/jniLibs
+          key: ffmpeg-android-7.1-${{ hashFiles('scripts/build_ffmpeg.sh') }}
+
+      - name: Install build dependencies
+        if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y yasm nasm pkg-config
+
+      - name: Setup Android NDK
+        if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r27c
+
+      - name: Build FFmpeg for Android
+        if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
+        run: |
+          chmod +x scripts/build_ffmpeg.sh
+          bash scripts/build_ffmpeg.sh
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+
+      - name: Verify FFmpeg binaries
+        run: |
+          echo "=== FFmpeg binaries ==="
+          find app/src/main/jniLibs -type f -name "lib*.so" -exec ls -lh {} \; || echo "No binaries found"
+
+      - name: Upload FFmpeg binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-binaries
+          path: app/src/main/jniLibs/
+          retention-days: 90
+
+  build-apk:
+    name: Build APK
+    needs: build-ffmpeg
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download FFmpeg binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-binaries
+          path: app/src/main/jniLibs/
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -42,7 +99,7 @@ jobs:
       - name: Build Debug APK
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Upload APK artifact
+      - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: ReClip-debug

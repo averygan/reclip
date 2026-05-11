@@ -27,6 +27,20 @@ android {
         }
     }
 
+    // Ensure native libs (including ffmpeg) are extracted to nativeLibraryDir
+    // so we can execute them. Required on Android 6.0+ with extractNativeLibs.
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging true
+        }
+    }
+
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['src/main/jniLibs']
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled true
