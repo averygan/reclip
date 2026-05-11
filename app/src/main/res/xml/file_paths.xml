@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <external-path name="downloads" path="Download/ReClip/" />
+    <cache-path name="cache" path="reclip/" />
+    <files-path name="internal" path="reclip/" />
+</paths>
