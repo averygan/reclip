@@ -29,7 +29,7 @@ android {
 
     // Ensure native libs (including ffmpeg) are extracted to nativeLibraryDir
     // so we can execute them. Required on Android 6.0+ with extractNativeLibs.
-    packagingOptions {
+    packaging {
         jniLibs {
             useLegacyPackaging true
         }
