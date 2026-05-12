@@ -93,7 +93,7 @@ jobs:
 
       - name: Generate Gradle wrapper
         run: |
-          gradle wrapper --gradle-version 8.5
+          gradle wrapper --gradle-version 8.2
           chmod +x gradlew
 
       - name: Build Debug APK
