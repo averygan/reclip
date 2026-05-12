@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ReClip</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-deep: #07070f;
+    --bg-base: #0c0c1d;
+    --bg-card: #12122a;
+    --bg-elevated: #1a1a38;
+    --accent: #ff3d5a;
+    --accent-dark: #cc2e47;
+    --accent-glow: rgba(255, 61, 90, 0.25);
+    --green: #00d67e;
+    --green-glow: rgba(0, 214, 126, 0.25);
+    --text-primary: #eaeaf0;
+    --text-secondary: #7a7a9e;
+    --text-muted: #4a4a6a;
+    --border: #1e1e3a;
+    --font-display: 'Outfit', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    font-family: var(--font-display);
+    overflow-x: hidden;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  body { padding-top: var(--safe-top); padding-bottom: var(--safe-bottom); }
+
+  ::-webkit-scrollbar { width: 0; }
+  input, textarea, button { font-family: inherit; }
+  input::placeholder, textarea::placeholder { color: var(--text-muted); }
+
+  /* ── Animations ── */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes shimmer {
+    0% { background-position: -300% 0; }
+    100% { background-position: 300% 0; }
+  }
+  @keyframes pulse-ring {
+    0% { transform: scale(0.9); opacity: 1; }
+    100% { transform: scale(1.6); opacity: 0; }
+  }
+  @keyframes progress-glow {
+    0%, 100% { box-shadow: 0 0 8px var(--accent-glow); }
+    50% { box-shadow: 0 0 20px var(--accent-glow); }
+  }
+
+  /* ── Header ── */
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 20px 14px; position: relative; z-index: 10;
+  }
+  .header-brand { display: flex; align-items: center; gap: 12px; }
+  .header-icon {
+    width: 40px; height: 40px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 6px 24px var(--accent-glow);
+    position: relative;
+  }
+  .header-icon::after {
+    content: ''; position: absolute; inset: -3px; border-radius: 15px;
+    background: linear-gradient(135deg, var(--accent), transparent);
+    opacity: 0.3; z-index: -1;
+  }
+  .header-title { font-size: 22px; font-weight: 900; letter-spacing: -0.5px; }
+  .header-title span { color: var(--accent); }
+  .header-sub {
+    font-size: 9px; font-weight: 700; color: var(--text-muted);
+    font-family: var(--font-mono); letter-spacing: 2px; margin-top: -1px;
+  }
+  .engine-badge {
+    font-size: 10px; padding: 4px 10px; border-radius: 20px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    color: var(--text-secondary); font-family: var(--font-mono);
+    font-weight: 600; display: flex; align-items: center; gap: 5px;
+  }
+  .engine-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+    box-shadow: 0 0 6px var(--green-glow);
+  }
+
+  /* ── Format Toggle ── */
+  .format-toggle {
+    display: flex; margin: 0 20px 16px; background: var(--bg-card);
+    border-radius: 14px; padding: 4px; border: 1px solid var(--border);
+    position: relative; overflow: hidden;
+  }
+  .format-btn {
+    flex: 1; padding: 12px 0; border-radius: 11px; border: none;
+    background: transparent; color: var(--text-muted); font-size: 13px;
+    font-weight: 700; cursor: pointer; display: flex; align-items: center;
+    justify-content: center; gap: 8px; transition: all 0.35s cubic-bezier(.4,0,.2,1);
+    position: relative; z-index: 2;
+  }
+  .format-btn.active {
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    color: #fff; box-shadow: 0 4px 20px var(--accent-glow);
+  }
+  .format-btn svg { width: 16px; height: 16px; }
+
+  /* ── Input Area ── */
+  .input-area {
+    margin: 0 20px 16px; background: var(--bg-card); border-radius: var(--radius);
+    border: 1.5px solid var(--border); overflow: hidden;
+    transition: border-color 0.3s;
+  }
+  .input-area.focused { border-color: var(--accent); }
+  .input-wrap { position: relative; }
+  .url-input {
+    width: 100%; padding: 14px 44px 14px 16px; border: none;
+    background: transparent; color: var(--text-primary); font-size: 14px;
+    font-family: var(--font-mono); font-weight: 500; outline: none;
+    resize: none; line-height: 1.7; min-height: 80px;
+  }
+  .clear-btn {
+    position: absolute; right: 12px; top: 12px; width: 26px; height: 26px;
+    border-radius: 13px; background: var(--bg-elevated); border: none;
+    color: var(--text-secondary); cursor: pointer; display: none;
+    align-items: center; justify-content: center;
+  }
+  .clear-btn.visible { display: flex; }
+  .input-actions {
+    display: flex; gap: 8px; padding: 0 12px 12px;
+  }
+  .btn-paste {
+    flex: 1; padding: 11px 0; border-radius: var(--radius-sm);
+    border: 1.5px solid var(--border); background: transparent;
+    color: var(--text-secondary); font-size: 13px; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    gap: 7px; transition: all 0.2s;
+  }
+  .btn-paste:active { background: var(--bg-elevated); }
+  .btn-fetch {
+    flex: 2; padding: 11px 0; border-radius: var(--radius-sm); border: none;
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    color: #fff; font-size: 13px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    box-shadow: 0 4px 20px var(--accent-glow); transition: all 0.2s;
+  }
+  .btn-fetch:disabled {
+    background: var(--bg-elevated); box-shadow: none; cursor: default;
+  }
+  .btn-fetch:active:not(:disabled) { transform: scale(0.97); }
+
+  /* ── Skeleton ── */
+  .skeleton-card {
+    background: var(--bg-card); border-radius: var(--radius);
+    overflow: hidden; margin: 0 20px 14px;
+  }
+  .skeleton-thumb {
+    height: 180px;
+    background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-elevated) 50%, var(--bg-card) 75%);
+    background-size: 300% 100%; animation: shimmer 2s ease-in-out infinite;
+  }
+  .skeleton-text {
+    height: 14px; border-radius: 7px; margin: 14px;
+    background: linear-gradient(90deg, var(--bg-elevated) 25%, #222244 50%, var(--bg-elevated) 75%);
+    background-size: 300% 100%; animation: shimmer 2s ease-in-out infinite;
+  }
+  .skeleton-text.short { width: 40%; height: 12px; margin-top: 8px; }
+
+  /* ── Video Card ── */
+  .video-card {
+    background: var(--bg-card); border-radius: var(--radius); overflow: hidden;
+    margin: 0 20px 14px; border: 1px solid var(--border);
+    animation: slideUp 0.5s cubic-bezier(.4,0,.2,1) both;
+  }
+  .video-card:nth-child(2) { animation-delay: 0.08s; }
+  .video-card:nth-child(3) { animation-delay: 0.16s; }
+  .thumb-wrap { position: relative; overflow: hidden; }
+  .thumb-wrap img {
+    width: 100%; height: 185px; object-fit: cover; display: block;
+    transition: transform 0.3s;
+  }
+  .thumb-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(transparent 50%, rgba(7,7,15,0.85));
+  }
+  .duration-badge {
+    position: absolute; bottom: 10px; right: 10px;
+    background: rgba(0,0,0,0.85); color: #fff; font-size: 11px;
+    padding: 3px 9px; border-radius: 6px; font-family: var(--font-mono);
+    font-weight: 700; backdrop-filter: blur(4px);
+  }
+  .card-body { padding: 14px 16px 16px; }
+  .card-title {
+    font-size: 14px; font-weight: 700; color: var(--text-primary);
+    line-height: 1.45; margin-bottom: 4px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .card-uploader {
+    font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;
+    font-weight: 500;
+  }
+
+  /* Quality pills */
+  .quality-row { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  .quality-pill {
+    padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 700;
+    border: 1.5px solid var(--border); background: transparent;
+    color: var(--text-muted); cursor: pointer; transition: all 0.2s;
+    font-family: var(--font-mono);
+  }
+  .quality-pill.active {
+    border-color: var(--accent); color: var(--accent);
+    background: rgba(255,61,90,0.1);
+  }
+
+  /* Download button */
+  .btn-download {
+    width: 100%; padding: 13px 0; border-radius: 12px; border: none;
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    color: #fff; font-size: 14px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    box-shadow: 0 4px 20px var(--accent-glow); transition: all 0.25s;
+    position: relative; overflow: hidden;
+  }
+  .btn-download:active { transform: scale(0.97); }
+  .btn-download.downloading {
+    background: var(--bg-elevated); box-shadow: none; cursor: default;
+  }
+  .btn-download.done {
+    background: linear-gradient(135deg, var(--green), #00b368);
+    box-shadow: 0 4px 20px var(--green-glow);
+  }
+
+  /* Progress bar inside button */
+  .progress-fill {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    background: rgba(255,61,90,0.2); transition: width 0.4s ease;
+    border-radius: 12px;
+  }
+  .btn-download .btn-content { position: relative; z-index: 2; display: flex; align-items: center; gap: 8px; }
+
+  /* Post-download actions */
+  .post-actions {
+    display: flex; gap: 8px; margin-top: 10px;
+    animation: fadeIn 0.3s ease;
+  }
+  .btn-post {
+    flex: 1; padding: 10px 0; border-radius: 10px;
+    border: 1.5px solid var(--border); background: transparent;
+    color: var(--text-secondary); font-size: 12px; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    gap: 6px; transition: all 0.2s;
+  }
+  .btn-post:active { background: var(--bg-elevated); }
+
+  /* ── Results header ── */
+  .results-header {
+    font-size: 11px; font-weight: 700; color: var(--text-muted);
+    font-family: var(--font-mono); letter-spacing: 1.5px;
+    text-transform: uppercase; margin: 0 20px 12px;
+  }
+
+  /* ── Download All ── */
+  .btn-download-all {
+    margin: 4px 20px 20px; padding: 14px 0; border-radius: 14px;
+    border: 2px solid var(--accent); background: rgba(255,61,90,0.06);
+    color: var(--accent); font-size: 14px; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    gap: 8px; width: calc(100% - 40px); transition: all 0.2s;
+  }
+  .btn-download-all:active { background: rgba(255,61,90,0.12); }
+
+  /* ── Empty State ── */
+  .empty-state {
+    padding: 50px 30px; text-align: center;
+    animation: fadeIn 0.5s ease;
+  }
+  .empty-icon {
+    width: 72px; height: 72px; border-radius: 22px; margin: 0 auto 20px;
+    background: linear-gradient(135deg, rgba(255,61,90,0.12), rgba(255,61,90,0.03));
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid rgba(255,61,90,0.12);
+  }
+  .empty-text { color: var(--text-muted); font-size: 14px; line-height: 1.7; }
+  .empty-text strong { color: var(--text-secondary); }
+  .site-tags {
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 7px;
+    margin-top: 22px;
+  }
+  .site-tag {
+    padding: 5px 13px; border-radius: 20px; font-size: 10px; font-weight: 700;
+    background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border);
+    font-family: var(--font-mono); letter-spacing: 0.5px;
+  }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--bg-elevated); color: var(--text-primary); padding: 11px 26px;
+    border-radius: 28px; font-size: 13px; font-weight: 600; z-index: 999;
+    pointer-events: none; opacity: 0; transition: all 0.35s cubic-bezier(.4,0,.2,1);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4); border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── Spinner ── */
+  .spinner {
+    width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.2);
+    border-top-color: #fff; border-radius: 50%; display: inline-block;
+    animation: spin 0.7s linear infinite;
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-brand">
+    <div class="header-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+    </div>
+    <div>
+      <div class="header-title">Re<span>Clip</span></div>
+      <div class="header-sub">ON-DEVICE ENGINE</div>
+    </div>
+  </div>
+  <div class="engine-badge" id="engineBadge">
+    <div class="engine-dot" id="engineDot"></div>
+    <span id="engineLabel">Ready</span>
+  </div>
+</div>
+
+<!-- Format Toggle -->
+<div class="format-toggle">
+  <button class="format-btn active" id="btnVideo" onclick="setFormat('video')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="23 7 16 12 23 17 23 7"/>
+      <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+    </svg>
+    MP4 Video
+  </button>
+  <button class="format-btn" id="btnAudio" onclick="setFormat('audio')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 18V5l12-2v13"/>
+      <circle cx="6" cy="18" r="3"/>
+      <circle cx="18" cy="16" r="3"/>
+    </svg>
+    MP3 Audio
+  </button>
+</div>
+
+<!-- URL Input -->
+<div class="input-area" id="inputArea">
+  <div class="input-wrap">
+    <textarea class="url-input" id="urlInput" placeholder="Paste video URL(s) here…" rows="3"
+      onfocus="document.getElementById('inputArea').classList.add('focused')"
+      onblur="document.getElementById('inputArea').classList.remove('focused')"
+      oninput="toggleClear()"></textarea>
+    <button class="clear-btn" id="clearBtn" onclick="clearInput()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+  </div>
+  <div class="input-actions">
+    <button class="btn-paste" onclick="pasteFromClipboard()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+      </svg>
+      Paste
+    </button>
+    <button class="btn-fetch" id="fetchBtn" onclick="fetchInfo()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      Fetch Info
+    </button>
+  </div>
+</div>
+
+<!-- Content Area -->
+<div id="content"></div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<div style="height: 40px;"></div>
+
+<script>
+  // ── State ──
+  let currentFormat = 'video';
+  let results = [];
+  let downloadStates = {}; // url -> { status, progress, filePath }
+  let callbackCounter = 0;
+  const callbacks = {};
+
+  // ── Bridge helpers ──
+  // Check if native bridge is available (running in Android WebView)
+  const isNative = () => typeof ReClip !== 'undefined';
+
+  // Generate unique callback ID and register it
+  function nativeCall(method, args) {
+    return new Promise((resolve) => {
+      const id = 'cb_' + (++callbackCounter);
+      callbacks[id] = resolve;
+      if (isNative()) {
+        ReClip[method](...args, id);
+      } else {
+        // Demo mode fallback
+        setTimeout(() => {
+          resolve(getDemoResponse(method, args));
+        }, 1200);
+      }
+    });
+  }
+
+  // Called from Java via evaluateJavascript
+  window._nativeCallback = function(id, data) {
+    if (callbacks[id]) {
+      callbacks[id](data);
+      delete callbacks[id];
+    }
+  };
+
+  // Handle shared URLs from other apps
+  window.onSharedUrl = function(url) {
+    document.getElementById('urlInput').value = url;
+    toggleClear();
+    fetchInfo();
+  };
+
+  // ── Demo responses (when not running in Android) ──
+  function getDemoResponse(method, args) {
+    if (method === 'fetchInfo') {
+      return {
+        success: true,
+        title: 'Epic Drone Footage — Blue Ridge Mountains 4K',
+        thumbnail: 'https://picsum.photos/seed/drone' + Math.random().toString(36).slice(2,5) + '/640/360',
+        duration: 347,
+        uploader: 'SkyVisions',
+        formats: [
+          { id: '137', label: '1080p', height: 1080 },
+          { id: '136', label: '720p', height: 720 },
+          { id: '135', label: '480p', height: 480 },
+        ],
+        url: args[0],
+      };
+    }
+    if (method === 'startDownload') {
+      return {
+        success: true,
+        file: '/storage/emulated/0/Download/ReClip/demo.mp4',
+        filename: 'demo.mp4',
+        size: 24500000,
+      };
+    }
+    return { success: true };
+  }
+
+  // ── Format Toggle ──
+  function setFormat(f) {
+    currentFormat = f;
+    document.getElementById('btnVideo').classList.toggle('active', f === 'video');
+    document.getElementById('btnAudio').classList.toggle('active', f === 'audio');
+    renderResults();
+  }
+
+  // ── Input ──
+  function toggleClear() {
+    const v = document.getElementById('urlInput').value;
+    document.getElementById('clearBtn').classList.toggle('visible', v.length > 0);
+  }
+
+  function clearInput() {
+    document.getElementById('urlInput').value = '';
+    toggleClear();
+    results = [];
+    downloadStates = {};
+    renderResults();
+  }
+
+  async function pasteFromClipboard() {
+    let text = '';
+    if (isNative()) {
+      text = ReClip.getClipboard();
+    } else {
+      try { text = await navigator.clipboard.readText(); } catch(e) {}
+    }
+    if (text) {
+      const input = document.getElementById('urlInput');
+      input.value = input.value ? input.value + '\n' + text : text;
+      toggleClear();
+      showToast('Pasted from clipboard');
+    } else {
+      showToast('Nothing to paste');
+    }
+  }
+
+  // ── Fetch Info ──
+  async function fetchInfo() {
+    const raw = document.getElementById('urlInput').value.trim();
+    const urls = raw.split('\n').map(u => u.trim()).filter(Boolean);
+    if (!urls.length) { showToast('Paste a URL first'); return; }
+
+    const btn = document.getElementById('fetchBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Fetching…';
+
+    results = [];
+    downloadStates = {};
+    renderSkeletons(urls.length);
+
+    for (const url of urls) {
+      const data = await nativeCall('fetchInfo', [url]);
+      if (data.success) {
+        data.url = data.url || url;
+        results.push(data);
+      } else {
+        showToast(data.error || 'Failed to fetch info');
+      }
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg> Fetch Info`;
+
+    renderResults();
+  }
+
+  // ── Download ──
+  async function downloadItem(index, qualityId) {
+    const item = results[index];
+    if (!item) return;
+
+    downloadStates[item.url] = { status: 'downloading', progress: 0 };
+    renderResults();
+
+    // Poll progress if native
+    let progressInterval;
+    if (isNative()) {
+      progressInterval = setInterval(() => {
+        try {
+          const p = JSON.parse(ReClip.getProgress());
+          if (downloadStates[item.url]) {
+            downloadStates[item.url].progress = p.percent || 0;
+            downloadStates[item.url].speed = p.speed || '';
+            renderProgressForCard(index);
+          }
+        } catch(e) {}
+      }, 800);
+    } else {
+      // Fake progress for demo
+      let prog = 0;
+      progressInterval = setInterval(() => {
+        prog += Math.random() * 20 + 5;
+        if (prog > 95) prog = 95;
+        if (downloadStates[item.url]) {
+          downloadStates[item.url].progress = prog;
+          renderProgressForCard(index);
+        }
+      }, 400);
+    }
+
+    const data = await nativeCall('startDownload', [
+      item.url,
+      currentFormat === 'audio' ? 'audio' : 'video',
+      qualityId || '',
+      item.title || '',
+    ]);
+
+    clearInterval(progressInterval);
+
+    if (data.success) {
+      downloadStates[item.url] = {
+        status: 'done', progress: 100,
+        filePath: data.file, filename: data.filename, size: data.size,
+      };
+      showToast('Saved to Downloads/ReClip/');
+    } else {
+      downloadStates[item.url] = { status: 'error', progress: 0 };
+      showToast(data.error || 'Download failed');
+    }
+
+    renderResults();
+  }
+
+  function downloadAll() {
+    results.forEach((item, i) => {
+      const state = downloadStates[item.url];
+      if (!state || state.status !== 'done') {
+        const card = document.getElementById('card-' + i);
+        const activeQ = card?.querySelector('.quality-pill.active');
+        const qId = activeQ?.dataset.id || (item.formats?.[0]?.id || '');
+        downloadItem(i, qId);
+      }
+    });
+  }
+
+  // ── Open / Share ──
+  function openFile(path) {
+    if (isNative()) ReClip.openFile(path);
+    else showToast('Open: ' + path);
+  }
+
+  function shareFile(path) {
+    if (isNative()) ReClip.shareFile(path);
+    else showToast('Share: ' + path);
+  }
+
+  // ── Rendering ──
+  function formatDuration(sec) {
+    if (!sec) return '';
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    if (h > 0) return h + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    return m + ':' + String(s).padStart(2,'0');
+  }
+
+  function formatSize(bytes) {
+    if (!bytes) return '';
+    if (bytes > 1e9) return (bytes / 1e9).toFixed(1) + ' GB';
+    if (bytes > 1e6) return (bytes / 1e6).toFixed(1) + ' MB';
+    return (bytes / 1e3).toFixed(0) + ' KB';
+  }
+
+  function renderSkeletons(count) {
+    let html = '';
+    for (let i = 0; i < Math.min(count, 3); i++) {
+      html += `
+        <div class="skeleton-card">
+          <div class="skeleton-thumb"></div>
+          <div class="skeleton-text" style="width:${70 + Math.random()*20}%"></div>
+          <div class="skeleton-text short"></div>
+        </div>`;
+    }
+    document.getElementById('content').innerHTML = html;
+  }
+
+  function renderProgressForCard(index) {
+    const item = results[index];
+    if (!item) return;
+    const state = downloadStates[item.url];
+    if (!state || state.status !== 'downloading') return;
+
+    const fill = document.getElementById('progress-' + index);
+    const label = document.getElementById('dl-label-' + index);
+    if (fill) fill.style.width = state.progress + '%';
+    if (label) {
+      let txt = Math.round(state.progress) + '%';
+      if (state.speed) txt += ' · ' + state.speed;
+      label.textContent = txt;
+    }
+  }
+
+  function renderResults() {
+    if (!results.length) {
+      document.getElementById('content').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="23 7 16 12 23 17 23 7"/>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+            </svg>
+          </div>
+          <p class="empty-text">
+            Paste a video URL above and tap <strong>Fetch Info</strong> to get started.<br>
+            Everything runs on-device — no server required.
+          </p>
+          <div class="site-tags">
+            ${['YouTube','TikTok','Instagram','X / Twitter','Reddit','1000+ sites'].map(s =>
+              '<span class="site-tag">' + s + '</span>'
+            ).join('')}
+          </div>
+        </div>`;
+      return;
+    }
+
+    let html = '<div class="results-header">' + results.length + (results.length === 1 ? ' result' : ' results') + '</div>';
+
+    results.forEach((item, i) => {
+      const state = downloadStates[item.url] || {};
+      const isDownloading = state.status === 'downloading';
+      const isDone = state.status === 'done';
+      const defaultQ = item.formats?.[0]?.id || '';
+
+      html += `
+        <div class="video-card" id="card-${i}">
+          <div class="thumb-wrap">
+            <img src="${item.thumbnail || ''}" alt="" onerror="this.style.background='var(--bg-elevated)';this.style.height='80px';">
+            <div class="thumb-overlay"></div>
+            ${item.duration ? '<span class="duration-badge">' + formatDuration(item.duration) + '</span>' : ''}
+          </div>
+          <div class="card-body">
+            <div class="card-title">${escapeHtml(item.title || 'Untitled')}</div>
+            ${item.uploader ? '<div class="card-uploader">' + escapeHtml(item.uploader) + '</div>' : ''}
+
+            ${currentFormat === 'video' && item.formats?.length ? `
+              <div class="quality-row">
+                ${item.formats.map((f, fi) => `
+                  <button class="quality-pill ${fi === 0 ? 'active' : ''}" data-id="${f.id}"
+                    onclick="selectQuality(this, ${i})">${f.label}</button>
+                `).join('')}
+              </div>
+            ` : ''}
+
+            <button class="btn-download ${isDownloading ? 'downloading' : ''} ${isDone ? 'done' : ''}"
+              onclick="onDownloadClick(${i})" ${isDownloading ? 'disabled' : ''}>
+              ${isDownloading ? '<div class="progress-fill" id="progress-' + i + '" style="width:' + (state.progress||0) + '%"></div>' : ''}
+              <span class="btn-content">
+                ${isDone ? `
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg> Downloaded${state.size ? ' · ' + formatSize(state.size) : ''}
+                ` : isDownloading ? `
+                  <span class="spinner"></span>
+                  <span id="dl-label-${i}">${Math.round(state.progress||0)}%</span>
+                ` : `
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg> Download ${currentFormat === 'audio' ? 'MP3' : 'MP4'}
+                `}
+              </span>
+            </button>
+
+            ${isDone && state.filePath ? `
+              <div class="post-actions">
+                <button class="btn-post" onclick="openFile('${state.filePath.replace(/'/g,"\\'")}')">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="5 3 19 12 5 21 5 3"/>
+                  </svg>
+                  Open
+                </button>
+                <button class="btn-post" onclick="shareFile('${state.filePath.replace(/'/g,"\\'")}')">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                  </svg>
+                  Share
+                </button>
+              </div>
+            ` : ''}
+          </div>
+        </div>`;
+    });
+
+    if (results.length > 1) {
+      html += `
+        <button class="btn-download-all" onclick="downloadAll()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Download All
+        </button>`;
+    }
+
+    document.getElementById('content').innerHTML = html;
+  }
+
+  function selectQuality(btn, cardIndex) {
+    const card = document.getElementById('card-' + cardIndex);
+    card.querySelectorAll('.quality-pill').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function onDownloadClick(index) {
+    const card = document.getElementById('card-' + index);
+    const activeQ = card?.querySelector('.quality-pill.active');
+    const qId = activeQ?.dataset.id || '';
+    downloadItem(index, qId);
+  }
+
+  function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  // ── Toast ──
+  let toastTimer;
+  function showToast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('visible');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('visible'), 2800);
+  }
+
+  // ── Init ──
+  document.addEventListener('DOMContentLoaded', () => {
+    renderResults();
+
+    // Check engine status
+    if (isNative()) {
+      try {
+        const status = JSON.parse(ReClip.checkEngine());
+        if (status.success) {
+          const ffLabel = status.ffmpeg_available ? ' + ffmpeg' : ' (no ffmpeg)';
+          document.getElementById('engineLabel').textContent = 'yt-dlp ' + status.yt_dlp_version + ffLabel;
+          if (!status.ffmpeg_available) {
+            document.getElementById('engineDot').style.background = '#ffaa00';
+          }
+        } else {
+          document.getElementById('engineDot').style.background = '#ff3d5a';
+          document.getElementById('engineLabel').textContent = 'Error';
+        }
+      } catch(e) {}
+
+      // Check for shared URL
+      const pending = ReClip.getPendingUrl();
+      if (pending) {
+        document.getElementById('urlInput').value = pending;
+        toggleClear();
+        setTimeout(() => fetchInfo(), 500);
+      }
+    } else {
+      document.getElementById('engineLabel').textContent = 'Demo';
+      document.getElementById('engineDot').style.background = '#ffaa00';
+    }
+  });
+</script>
+</body>
+</html>

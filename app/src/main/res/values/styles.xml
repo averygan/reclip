@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.ReClip" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#E94560</item>
+        <item name="colorPrimaryVariant">#C23152</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">#1DB954</item>
+        <item name="android:statusBarColor">#0A0A1A</item>
+        <item name="android:navigationBarColor">#0A0A1A</item>
+        <item name="android:windowBackground">#0F0F23</item>
+    </style>
+</resources>
