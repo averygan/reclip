@@ -91,9 +91,14 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: ${{ runner.os }}-gradle-
 
+      - name: Setup Gradle 8.2
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.2'
+
       - name: Generate Gradle wrapper
         run: |
-          gradle wrapper --gradle-version 8.2
+          gradle wrapper --gradle-version 8.2 --distribution-type bin
           chmod +x gradlew
 
       - name: Build Debug APK
