@@ -4,7 +4,7 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg curl && \
+    apt-get install -y --no-install-recommends ffmpeg && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -20,8 +20,5 @@ RUN useradd -m -u 1000 reclip && \
 USER reclip
 
 EXPOSE 8899
-
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
-    CMD curl -fsS http://localhost:8899/ || exit 1
 
 CMD ["gunicorn", "-b", "0.0.0.0:8899", "-w", "2", "--timeout", "600", "app:app"]
