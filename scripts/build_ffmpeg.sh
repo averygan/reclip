@@ -2,15 +2,16 @@
 # build_ffmpeg.sh — Cross-compile static ffmpeg + ffprobe for Android
 # Runs during GitHub Actions CI. Outputs binaries to app/src/main/jniLibs/<ABI>/
 #
-# Produces statically-linked executables (not shared libs) so they can
-# be bundled as raw assets and executed directly on the device.
+# Now includes libmp3lame for MP3 audio extraction support.
 
 set -euo pipefail
 
 FFMPEG_VERSION="7.1"
 FFMPEG_URL="https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz"
 
-# Android NDK must be set
+LAME_VERSION="3.100"
+LAME_URL="https://downloads.sourceforge.net/project/lame/lame/${LAME_VERSION}/lame-${LAME_VERSION}.tar.gz"
+
 if [ -z "${ANDROID_NDK_HOME:-}" ] && [ -z "${ANDROID_NDK:-}" ]; then
   echo "ERROR: ANDROID_NDK_HOME or ANDROID_NDK must be set"
   exit 1
@@ -24,18 +25,66 @@ OUTPUT_DIR="$(pwd)/app/src/main/jniLibs"
 mkdir -p "$WORKDIR"
 cd "$WORKDIR"
 
-# Download ffmpeg source
+# Download FFmpeg source
 if [ ! -d "ffmpeg-${FFMPEG_VERSION}" ]; then
   echo "==> Downloading FFmpeg ${FFMPEG_VERSION}..."
   curl -sL "$FFMPEG_URL" | tar xJ
 fi
 
+# Download LAME source (MP3 encoder)
+if [ ! -d "lame-${LAME_VERSION}" ]; then
+  echo "==> Downloading LAME ${LAME_VERSION}..."
+  curl -sL "$LAME_URL" | tar xz
+fi
+
+build_lame_for_arch() {
+  local ABI=$1
+  local HOST_TRIPLE=$2
+  local CC_PREFIX=$3
+
+  local TOOLCHAIN="${NDK}/toolchains/llvm/prebuilt/linux-x86_64"
+  local PREFIX="${WORKDIR}/lame-install-${ABI}"
+
+  echo ""
+  echo "==> Building LAME for ${ABI}"
+  echo ""
+
+  rm -rf "$PREFIX"
+
+  cd "${WORKDIR}/lame-${LAME_VERSION}"
+  make distclean 2>/dev/null || true
+
+  export CC="${TOOLCHAIN}/bin/${CC_PREFIX}${API_LEVEL}-clang"
+  export AR="${TOOLCHAIN}/bin/llvm-ar"
+  export RANLIB="${TOOLCHAIN}/bin/llvm-ranlib"
+  export STRIP="${TOOLCHAIN}/bin/llvm-strip"
+  export CFLAGS="-O2 -fPIC"
+
+  ./configure \
+    --prefix="$PREFIX" \
+    --host="$HOST_TRIPLE" \
+    --disable-shared \
+    --enable-static \
+    --disable-frontend \
+    --disable-decoder
+
+  make -j$(nproc)
+  make install
+
+  unset CC AR RANLIB STRIP CFLAGS
+
+  cd "$WORKDIR"
+}
+
 build_ffmpeg_for_arch() {
   local ARCH=$1
   local ABI=$2
-  local TOOLCHAIN_PREFIX=$3
-  local CC_PREFIX=$4
-  local CPU_FLAGS=$5
+  local CC_PREFIX=$3
+  local CPU_FLAGS=$4
+  local HOST_TRIPLE=$5
+
+  # Build LAME first
+  build_lame_for_arch "$ABI" "$HOST_TRIPLE" "$CC_PREFIX"
 
   echo ""
   echo "============================================"
@@ -52,11 +101,11 @@ build_ffmpeg_for_arch() {
   local RANLIB="${TOOLCHAIN}/bin/llvm-ranlib"
   local NM="${TOOLCHAIN}/bin/llvm-nm"
 
-  local BUILD_DIR="${WORKDIR}/build-${ABI}"
+  local LAME_PREFIX="${WORKDIR}/lame-install-${ABI}"
   local PREFIX="${WORKDIR}/install-${ABI}"
 
-  rm -rf "$BUILD_DIR" "$PREFIX"
-  mkdir -p "$BUILD_DIR" "$PREFIX"
+  rm -rf "$PREFIX"
+  mkdir -p "$PREFIX"
 
   cd "${WORKDIR}/ffmpeg-${FFMPEG_VERSION}"
   make clean 2>/dev/null || true
@@ -90,9 +139,9 @@ build_ffmpeg_for_arch() {
     --disable-avdevice \
     --disable-postproc \
     --disable-symver \
-    --disable-programs \
     --enable-ffmpeg \
     --enable-ffprobe \
+    --enable-libmp3lame \
     --enable-protocol=file \
     --enable-protocol=pipe \
     --enable-protocol=concat \
@@ -111,18 +160,17 @@ build_ffmpeg_for_arch() {
     --enable-avutil \
     --enable-jni \
     --enable-mediacodec \
-    --extra-cflags="-O2 -fPIC" \
-    --extra-ldflags="-Wl,-z,max-page-size=16384" \
+    --extra-cflags="-O2 -fPIC -I${LAME_PREFIX}/include" \
+    --extra-ldflags="-Wl,-z,max-page-size=16384 -L${LAME_PREFIX}/lib" \
+    --extra-libs="-lmp3lame" \
     --pkg-config=false
 
   make -j$(nproc)
   make install
 
-  # Copy the static binaries
   local OUT="${OUTPUT_DIR}/${ABI}"
   mkdir -p "$OUT"
 
-  # ffmpeg and ffprobe are built as executables, copy them
   if [ -f "${PREFIX}/bin/ffmpeg" ]; then
     cp "${PREFIX}/bin/ffmpeg" "$OUT/libffmpeg.so"
     "$STRIP" "$OUT/libffmpeg.so"
@@ -142,22 +190,22 @@ build_ffmpeg_for_arch() {
 build_ffmpeg_for_arch \
   "aarch64" \
   "arm64-v8a" \
-  "aarch64-linux-android-" \
   "aarch64-linux-android" \
-  "armv8-a"
+  "armv8-a" \
+  "aarch64-linux"
 
 # Build for x86_64 (emulators)
 build_ffmpeg_for_arch \
   "x86_64" \
   "x86_64" \
-  "x86_64-linux-android-" \
   "x86_64-linux-android" \
-  "x86-64"
+  "x86-64" \
+  "x86_64-linux"
 
 echo ""
 echo "============================================"
 echo "  FFmpeg build complete!"
 echo "============================================"
 echo ""
-echo "Binaries:"
+echo "Binaries (with libmp3lame for MP3 support):"
 find "$OUTPUT_DIR" -name "lib*.so" -exec ls -lh {} \;

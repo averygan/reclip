@@ -5,68 +5,124 @@ All processing happens in-process on the device.
 
 FFmpeg is bundled inside the APK as a native library (libffmpeg.so).
 The Java layer locates it and passes the directory path here via set_ffmpeg_path().
+
+Because nativeLibraryDir is read-only on modern Android, we copy ffmpeg to a
+writable location (app files dir) with the correct executable name on first use.
 """
 
 import json
 import os
+import shutil
+import stat
+import subprocess
 import traceback
 
 import yt_dlp
 
 
 # ── FFmpeg path management ──
-# Set by Java bridge on startup; points to the directory containing
-# the bundled libffmpeg.so and libffprobe.so binaries.
-_ffmpeg_dir = None
+_ffmpeg_dir = None          # source dir (nativeLibraryDir)
+_ffmpeg_writable_dir = None # writable copy location (set by Java)
+_ffmpeg_exec_path = None    # final executable path after setup
+_has_libmp3lame = None      # cached check for MP3 encoder
 
 
-def set_ffmpeg_path(directory):
-    """Called from Java to tell us where the bundled ffmpeg lives."""
-    global _ffmpeg_dir
-    _ffmpeg_dir = directory
+def set_ffmpeg_path(native_dir, writable_dir):
+    """
+    Called from Java to tell us where the bundled ffmpeg lives.
 
-    # yt-dlp looks for executables named 'ffmpeg' and 'ffprobe'.
-    # Android bundles them as 'libffmpeg.so' and 'libffprobe.so' in nativeLibraryDir.
-    # We create symlinks with the expected names so yt-dlp finds them.
-    if directory and os.path.isdir(directory):
-        _ensure_symlink(os.path.join(directory, 'libffmpeg.so'),
-                        os.path.join(directory, 'ffmpeg'))
-        _ensure_symlink(os.path.join(directory, 'libffprobe.so'),
-                        os.path.join(directory, 'ffprobe'))
+    native_dir: nativeLibraryDir containing libffmpeg.so (read-only on modern Android)
+    writable_dir: app files dir where we can place an executable copy
+    """
+    global _ffmpeg_dir, _ffmpeg_writable_dir, _ffmpeg_exec_path
 
+    _ffmpeg_dir = native_dir
+    _ffmpeg_writable_dir = writable_dir
 
-def _ensure_symlink(src, dst):
-    """Create symlink dst -> src if src exists and dst doesn't."""
-    try:
-        if os.path.exists(src) and not os.path.exists(dst):
+    if not native_dir or not writable_dir:
+        return
+
+    os.makedirs(writable_dir, exist_ok=True)
+
+    src_ffmpeg = os.path.join(native_dir, 'libffmpeg.so')
+    src_ffprobe = os.path.join(native_dir, 'libffprobe.so')
+
+    dst_ffmpeg = os.path.join(writable_dir, 'ffmpeg')
+    dst_ffprobe = os.path.join(writable_dir, 'ffprobe')
+
+    # Strategy 1: Try symlink (fastest, no disk usage)
+    # Strategy 2: Copy the binary (works on all Android versions)
+    for src, dst in [(src_ffmpeg, dst_ffmpeg), (src_ffprobe, dst_ffprobe)]:
+        if not os.path.exists(src):
+            continue
+
+        # If destination already exists and is newer than source, skip
+        if os.path.exists(dst) and os.path.getsize(dst) == os.path.getsize(src):
+            try:
+                os.chmod(dst, 0o755)
+            except OSError:
+                pass
+            continue
+
+        # Remove old version
+        if os.path.lexists(dst):
+            try:
+                os.remove(dst)
+            except OSError:
+                pass
+
+        # Try symlink first
+        try:
             os.symlink(src, dst)
-    except OSError:
-        # nativeLibraryDir may be read-only on some devices.
-        # Fall back: yt-dlp can also find binaries by full path.
-        pass
+        except OSError:
+            # Symlink failed — copy the file
+            try:
+                shutil.copy2(src, dst)
+            except OSError as e:
+                print(f"Failed to copy {src} -> {dst}: {e}")
+                continue
+
+        # Make executable
+        try:
+            os.chmod(dst, 0o755)
+        except OSError:
+            pass
+
+    if os.path.exists(dst_ffmpeg):
+        _ffmpeg_exec_path = dst_ffmpeg
+
+
+def _check_libmp3lame():
+    """Check if our bundled ffmpeg supports libmp3lame encoder."""
+    global _has_libmp3lame
+    if _has_libmp3lame is not None:
+        return _has_libmp3lame
+    if not _ffmpeg_exec_path or not os.path.exists(_ffmpeg_exec_path):
+        _has_libmp3lame = False
+        return False
+    try:
+        result = subprocess.run(
+            [_ffmpeg_exec_path, '-encoders'],
+            capture_output=True, text=True, timeout=10
+        )
+        _has_libmp3lame = 'libmp3lame' in result.stdout
+    except Exception:
+        _has_libmp3lame = False
+    return _has_libmp3lame
 
 
 def _get_ffmpeg_opts():
     """Return yt-dlp options dict for ffmpeg location."""
-    if _ffmpeg_dir:
-        # First try symlinked name
-        ffmpeg_path = os.path.join(_ffmpeg_dir, 'ffmpeg')
-        if os.path.exists(ffmpeg_path):
-            return {'ffmpeg_location': _ffmpeg_dir}
-        # Fall back to .so name directly
-        so_path = os.path.join(_ffmpeg_dir, 'libffmpeg.so')
-        if os.path.exists(so_path):
-            return {'ffmpeg_location': so_path}
+    if _ffmpeg_exec_path and os.path.exists(_ffmpeg_exec_path):
+        # yt-dlp wants the *directory* containing ffmpeg and ffprobe
+        return {'ffmpeg_location': os.path.dirname(_ffmpeg_exec_path)}
     return {}
 
 
 # ── Video Info ──
 
 def get_info(url):
-    """
-    Fetch video metadata without downloading.
-    Returns JSON string with title, thumbnail, duration, formats, etc.
-    """
+    """Fetch video metadata without downloading."""
     try:
         ydl_opts = {
             'quiet': True,
@@ -154,48 +210,85 @@ def download_media(url, output_dir, format_choice='video', format_id=None, title
         # Apply bundled ffmpeg location
         ydl_opts.update(_get_ffmpeg_opts())
 
+        # Track expected output extension for finding the file later
+        expected_ext = None
+
         if format_choice == 'audio':
             ydl_opts['format'] = 'bestaudio/best'
-            ydl_opts['postprocessors'] = [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }]
+            # Choose codec based on what ffmpeg supports.
+            # libmp3lame requires the encoder to be built into ffmpeg.
+            # If not available, fall back to AAC (always available in ffmpeg).
+            if _check_libmp3lame():
+                ydl_opts['postprocessors'] = [{
+                    'key': 'FFmpegExtractAudio',
+                    'preferredcodec': 'mp3',
+                    'preferredquality': '192',
+                }]
+                expected_ext = '.mp3'
+            else:
+                # Fallback: AAC in M4A container (always works)
+                ydl_opts['postprocessors'] = [{
+                    'key': 'FFmpegExtractAudio',
+                    'preferredcodec': 'aac',
+                    'preferredquality': '192',
+                }]
+                expected_ext = '.m4a'
         elif format_id:
             ydl_opts['format'] = f'{format_id}+bestaudio/best'
             ydl_opts['merge_output_format'] = 'mp4'
+            expected_ext = '.mp4'
         else:
             ydl_opts['format'] = 'bestvideo+bestaudio/best'
             ydl_opts['merge_output_format'] = 'mp4'
+            expected_ext = '.mp4'
 
+        downloaded_file = None
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
 
-            # For audio, the extension changes to mp3
-            if format_choice == 'audio':
+            # For audio, the extension changes after postprocessing
+            if format_choice == 'audio' and expected_ext:
                 base = os.path.splitext(filename)[0]
-                filename = base + '.mp3'
+                candidate = base + expected_ext
+                if os.path.exists(candidate):
+                    filename = candidate
 
             # Find the actual file (yt-dlp may have changed the name)
             if not os.path.exists(filename):
-                for f in os.listdir(output_dir):
+                # Search for files starting with our safe_title
+                for f in sorted(os.listdir(output_dir),
+                                key=lambda x: os.path.getmtime(os.path.join(output_dir, x)),
+                                reverse=True):
                     if f.startswith(safe_title):
+                        # Skip incomplete fragments
+                        if f.endswith('.part') or f.endswith('.ytdl'):
+                            continue
                         filename = os.path.join(output_dir, f)
                         break
+            downloaded_file = filename
 
-        if os.path.exists(filename):
-            file_size = os.path.getsize(filename)
+        if downloaded_file and os.path.exists(downloaded_file):
+            file_size = os.path.getsize(downloaded_file)
             return json.dumps({
                 'success': True,
-                'file': filename,
-                'filename': os.path.basename(filename),
+                'file': downloaded_file,
+                'filename': os.path.basename(downloaded_file),
                 'size': file_size,
             })
         else:
+            # List what's in the output dir for debugging
+            files_in_dir = []
+            try:
+                files_in_dir = os.listdir(output_dir)
+            except Exception:
+                pass
             return json.dumps({
                 'success': False,
                 'error': 'Download completed but file not found',
+                'output_dir': output_dir,
+                'files_in_dir': files_in_dir,
+                'expected_filename': downloaded_file,
             })
 
     except Exception as e:
@@ -236,12 +329,10 @@ def _progress_hook(d):
 
 
 def get_progress():
-    """Return current download progress as JSON."""
     return json.dumps(_current_progress)
 
 
 def reset_progress():
-    """Reset progress state."""
     global _current_progress
     _current_progress = {'percent': 0, 'speed': '', 'eta': '', 'status': 'idle'}
 
@@ -249,25 +340,20 @@ def reset_progress():
 # ── Dependency check ──
 
 def check_dependencies():
-    """Verify yt-dlp and ffmpeg are available. Returns version info."""
+    """Verify yt-dlp and ffmpeg are available."""
     try:
         ytdlp_version = yt_dlp.version.__version__
 
-        ffmpeg_available = False
-        ffmpeg_path_found = ''
-        if _ffmpeg_dir:
-            for name in ['ffmpeg', 'libffmpeg.so']:
-                p = os.path.join(_ffmpeg_dir, name)
-                if os.path.exists(p):
-                    ffmpeg_available = True
-                    ffmpeg_path_found = p
-                    break
+        ffmpeg_available = bool(_ffmpeg_exec_path and os.path.exists(_ffmpeg_exec_path))
+        ffmpeg_path = _ffmpeg_exec_path or ''
+        has_mp3 = _check_libmp3lame() if ffmpeg_available else False
 
         return json.dumps({
             'success': True,
             'yt_dlp_version': ytdlp_version,
             'ffmpeg_available': ffmpeg_available,
-            'ffmpeg_path': ffmpeg_path_found,
+            'ffmpeg_path': ffmpeg_path,
+            'has_libmp3lame': has_mp3,
         })
     except Exception as e:
         return json.dumps({
