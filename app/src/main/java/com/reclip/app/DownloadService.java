@@ -20,7 +20,7 @@ public class DownloadService extends Service {
         Notification notification = new NotificationCompat.Builder(this, "reclip_downloads")
             .setContentTitle("ReClip")
             .setContentText("Downloading media…")
-            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setSmallIcon(R.drawable.ic_notification)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .build();
