@@ -226,8 +226,8 @@
   }
 
   .status-pill {
-    display: flex; align-items: center; gap: 7px;
-    padding: 6px 12px;
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 10px;
     border-radius: 100px;
     background: var(--surface);
     backdrop-filter: blur(10px);
@@ -236,7 +236,14 @@
     font-size: 9px;
     font-weight: 500;
     color: var(--text-soft);
-    animation: slide-in-right 0.7s var(--ease) both;
+    flex-shrink: 1;
+    min-width: 0;
+    max-width: 140px;
+  }
+  .status-pill span:last-child {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .status-dot {
     width: 6px; height: 6px;
@@ -265,6 +272,339 @@
   @keyframes slide-in-right {
     from { opacity: 0; transform: translateX(20px); }
     to { opacity: 1; transform: translateX(0); }
+  }
+
+  /* ─── Header actions (downloads button + status pill) ─── */
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: slide-in-right 0.7s var(--ease) both;
+  }
+  .header-btn {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--surface);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    color: var(--text-soft);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s var(--ease);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .header-btn:active {
+    transform: scale(0.92);
+    background: var(--surface-2);
+    border-color: var(--coral);
+    color: var(--coral);
+  }
+  .header-btn-badge {
+    position: absolute;
+    top: -3px; right: -3px;
+    min-width: 16px; height: 16px;
+    padding: 0 4px;
+    border-radius: 100px;
+    background: linear-gradient(135deg, var(--coral), var(--violet));
+    color: white;
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px var(--coral-glow);
+    border: 2px solid var(--void);
+  }
+
+  /* ─── Downloads Sheet ─── */
+  .sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(5, 5, 17, 0.7);
+    backdrop-filter: blur(8px);
+    z-index: 998;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s var(--ease);
+  }
+  .sheet-backdrop.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .sheet {
+    position: fixed;
+    left: 50%;
+    bottom: 0;
+    transform: translate(-50%, 100%);
+    width: 100%;
+    max-width: 540px;
+    height: 88vh;
+    max-height: 88vh;
+    background: linear-gradient(180deg, var(--bg-card, #12122a) 0%, var(--void-2, #0a0a1f) 100%);
+    border-top-left-radius: 26px;
+    border-top-right-radius: 26px;
+    border: 1px solid var(--border-strong);
+    border-bottom: none;
+    z-index: 999;
+    transition: transform 0.45s var(--ease-out);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 -20px 60px rgba(0,0,0,0.5);
+  }
+  .sheet.open {
+    transform: translate(-50%, 0);
+  }
+
+  .sheet-handle {
+    width: 40px;
+    height: 4px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 100px;
+    margin: 10px auto 4px;
+    flex-shrink: 0;
+  }
+
+  .sheet-header {
+    padding: 10px 20px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .sheet-title-wrap {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .sheet-title {
+    font-family: var(--display);
+    font-style: italic;
+    font-size: 24px;
+    font-weight: 400;
+    color: var(--text);
+    letter-spacing: -0.5px;
+    line-height: 1;
+  }
+  .sheet-count {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-mute);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .sheet-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .sheet-icon-btn {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    color: var(--text-soft);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+  }
+  .sheet-icon-btn:active {
+    transform: scale(0.92);
+    background: rgba(255,255,255,0.08);
+  }
+
+  .sheet-filters {
+    display: flex;
+    gap: 6px;
+    padding: 14px 20px 4px;
+    flex-shrink: 0;
+  }
+  .filter-pill {
+    padding: 7px 14px;
+    border-radius: 100px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    color: var(--text-mute);
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s var(--ease);
+  }
+  .filter-pill.active {
+    background: linear-gradient(135deg, var(--coral), var(--violet));
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 4px 16px var(--coral-glow);
+  }
+
+  .sheet-list {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 10px 14px 30px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .sheet-list::-webkit-scrollbar {
+    width: 3px;
+  }
+  .sheet-list::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+  }
+
+  .dl-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    margin-bottom: 4px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.025);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.25s var(--ease);
+    animation: dl-item-in 0.4s var(--ease) both;
+  }
+  .dl-item:active {
+    transform: scale(0.985);
+    background: rgba(255,255,255,0.06);
+    border-color: var(--border);
+  }
+  @keyframes dl-item-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .dl-thumb {
+    width: 60px;
+    height: 60px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, var(--abyss, #11112e), #0a0a1f);
+    background-size: cover;
+    background-position: center;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .dl-thumb-icon {
+    color: rgba(255,255,255,0.3);
+  }
+  .dl-thumb.audio {
+    background: linear-gradient(135deg, rgba(157,111,255,0.2), rgba(255,84,112,0.1));
+  }
+  .dl-thumb.video {
+    background: linear-gradient(135deg, rgba(0,217,200,0.15), rgba(70,130,255,0.1));
+  }
+  .dl-type-badge {
+    position: absolute;
+    bottom: 3px; right: 3px;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    color: white;
+    font-family: var(--mono);
+    font-size: 8px;
+    font-weight: 700;
+    padding: 2px 5px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+  }
+  .dl-meta {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .dl-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.3;
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    letter-spacing: -0.1px;
+  }
+  .dl-detail {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    color: var(--text-mute);
+  }
+  .dl-detail .dot {
+    width: 2px; height: 2px;
+    border-radius: 50%;
+    background: var(--text-faint);
+  }
+  .dl-detail .mono {
+    font-family: var(--mono);
+    font-weight: 500;
+  }
+  .dl-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .dl-action-btn {
+    width: 32px; height: 32px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    color: var(--text-soft);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s;
+  }
+  .dl-action-btn:active {
+    transform: scale(0.9);
+    background: linear-gradient(135deg, var(--coral), var(--violet));
+    color: white;
+    border-color: transparent;
+  }
+
+  .sheet-empty {
+    padding: 60px 30px;
+    text-align: center;
+    color: var(--text-mute);
+  }
+  .sheet-empty-icon {
+    width: 60px; height: 60px;
+    margin: 0 auto 16px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(255,84,112,0.08), rgba(157,111,255,0.04));
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .sheet-empty-title {
+    font-family: var(--display);
+    font-style: italic;
+    font-size: 20px;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .sheet-empty-text {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-mute);
+    max-width: 240px;
+    margin: 0 auto;
   }
 
   /* ─── Hero / Big input area ─── */
@@ -1026,9 +1366,19 @@
           <div class="sub">Local Media Engine</div>
         </div>
       </div>
-      <div class="status-pill" id="status">
-        <span class="status-dot" id="statusDot"></span>
-        <span id="statusLabel">Ready</span>
+      <div class="header-actions">
+        <button class="header-btn" id="downloadsBtn" onclick="openDownloads()" aria-label="View downloads">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span class="header-btn-badge" id="downloadsBadge" style="display:none">0</span>
+        </button>
+        <div class="status-pill" id="status">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusLabel">Ready</span>
+        </div>
       </div>
     </div>
 
@@ -1118,6 +1468,38 @@
     </div>
   </div>
 
+</div>
+
+<!-- ── Downloads Sheet ── -->
+<div class="sheet-backdrop" id="sheetBackdrop" onclick="closeDownloads()"></div>
+<div class="sheet" id="downloadsSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header">
+    <div class="sheet-title-wrap">
+      <h2 class="sheet-title">Downloads</h2>
+      <span class="sheet-count" id="sheetCount">0 files</span>
+    </div>
+    <div class="sheet-actions">
+      <button class="sheet-icon-btn" id="sheetClearBtn" onclick="clearDownloadsHistory()" title="Clear history" style="display:none">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/>
+          <path d="M10 11v6M14 11v6"/>
+        </svg>
+      </button>
+      <button class="sheet-icon-btn" onclick="closeDownloads()" title="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+  <div class="sheet-filters">
+    <button class="filter-pill active" data-filter="all" onclick="setDownloadFilter('all')">All</button>
+    <button class="filter-pill" data-filter="video" onclick="setDownloadFilter('video')">Video</button>
+    <button class="filter-pill" data-filter="audio" onclick="setDownloadFilter('audio')">Audio</button>
+  </div>
+  <div class="sheet-list" id="downloadsList"></div>
 </div>
 
 <!-- Toast -->
@@ -1302,6 +1684,19 @@
         status: 'done', progress: 100,
         filePath: data.file, filename: data.filename, size: data.size,
       };
+      // Track download in history
+      addToDownloadsHistory({
+        title: item.title || item.filename || 'Untitled',
+        filename: data.filename,
+        filePath: data.file,
+        size: data.size,
+        thumbnail: item.thumbnail || '',
+        uploader: item.uploader || '',
+        duration: item.duration || 0,
+        format: currentFormat,
+        sourceUrl: item.url,
+        savedAt: Date.now(),
+      });
       if (window.navigator.vibrate) navigator.vibrate([20, 30, 20]);
       showToast('Saved to Downloads/ReClip');
     } else {
@@ -1332,6 +1727,212 @@
     } else {
       window.open(url, '_blank');
     }
+  }
+
+  // ─── Downloads history ───
+  const HISTORY_KEY = 'reclip_downloads_history';
+  let downloadsHistory = [];
+  let currentDownloadFilter = 'all';
+
+  function loadDownloadsHistory() {
+    try {
+      const raw = localStorage.getItem(HISTORY_KEY);
+      downloadsHistory = raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      downloadsHistory = [];
+    }
+    // Seed demo entries on first run in demo mode (browser preview)
+    if (!isNative() && !downloadsHistory.length) {
+      downloadsHistory = [
+        {
+          title: 'Aurora Skies — Atmospheric Cinematic Score',
+          filename: 'aurora_skies.mp4',
+          filePath: '/demo/aurora_skies.mp4',
+          size: 24500000,
+          thumbnail: 'https://picsum.photos/seed/aurora1/200/200',
+          format: 'video',
+          savedAt: Date.now() - 1000 * 60 * 8,
+        },
+        {
+          title: 'Lo-Fi Beats to Code To · Late Night Mix',
+          filename: 'lofi_beats.mp3',
+          filePath: '/demo/lofi_beats.mp3',
+          size: 8200000,
+          thumbnail: 'https://picsum.photos/seed/lofi2/200/200',
+          format: 'audio',
+          savedAt: Date.now() - 1000 * 60 * 60 * 3,
+        },
+        {
+          title: 'Drone Footage — Iceland Highlands 4K',
+          filename: 'iceland_4k.mp4',
+          filePath: '/demo/iceland_4k.mp4',
+          size: 156000000,
+          thumbnail: 'https://picsum.photos/seed/iceland3/200/200',
+          format: 'video',
+          savedAt: Date.now() - 1000 * 60 * 60 * 24 * 2,
+        },
+      ];
+    }
+    updateDownloadsBadge();
+  }
+
+  function saveDownloadsHistory() {
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(downloadsHistory));
+    } catch (e) { /* ignore */ }
+    updateDownloadsBadge();
+  }
+
+  function addToDownloadsHistory(entry) {
+    // Avoid exact duplicates (same filePath)
+    downloadsHistory = downloadsHistory.filter(e => e.filePath !== entry.filePath);
+    downloadsHistory.unshift(entry);
+    // Cap at 100 entries
+    if (downloadsHistory.length > 100) downloadsHistory.length = 100;
+    saveDownloadsHistory();
+  }
+
+  function updateDownloadsBadge() {
+    const badge = document.getElementById('downloadsBadge');
+    if (!badge) return;
+    if (downloadsHistory.length > 0) {
+      badge.style.display = 'flex';
+      badge.textContent = downloadsHistory.length > 99 ? '99+' : downloadsHistory.length;
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  function openDownloads() {
+    if (window.navigator.vibrate) navigator.vibrate(15);
+    renderDownloadsList();
+    document.getElementById('sheetBackdrop').classList.add('open');
+    document.getElementById('downloadsSheet').classList.add('open');
+  }
+
+  function closeDownloads() {
+    document.getElementById('sheetBackdrop').classList.remove('open');
+    document.getElementById('downloadsSheet').classList.remove('open');
+  }
+
+  function setDownloadFilter(filter) {
+    currentDownloadFilter = filter;
+    document.querySelectorAll('.filter-pill').forEach(p => {
+      p.classList.toggle('active', p.dataset.filter === filter);
+    });
+    if (window.navigator.vibrate) navigator.vibrate(8);
+    renderDownloadsList();
+  }
+
+  function clearDownloadsHistory() {
+    if (!downloadsHistory.length) return;
+    if (!confirm('Clear all download history? This only removes the list — your files stay in Downloads/ReClip.')) return;
+    downloadsHistory = [];
+    saveDownloadsHistory();
+    renderDownloadsList();
+    showToast('History cleared');
+  }
+
+  function deleteHistoryEntry(index) {
+    const entry = filteredHistory()[index];
+    if (!entry) return;
+    downloadsHistory = downloadsHistory.filter(e => e.filePath !== entry.filePath);
+    saveDownloadsHistory();
+    renderDownloadsList();
+  }
+
+  function filteredHistory() {
+    if (currentDownloadFilter === 'all') return downloadsHistory;
+    return downloadsHistory.filter(e => e.format === currentDownloadFilter);
+  }
+
+  function formatRelativeTime(ts) {
+    const diff = Date.now() - ts;
+    const min = Math.floor(diff / 60000);
+    const hr = Math.floor(diff / 3600000);
+    const day = Math.floor(diff / 86400000);
+    if (min < 1) return 'just now';
+    if (min < 60) return min + 'm ago';
+    if (hr < 24) return hr + 'h ago';
+    if (day < 7) return day + 'd ago';
+    return new Date(ts).toLocaleDateString();
+  }
+
+  function renderDownloadsList() {
+    const listEl = document.getElementById('downloadsList');
+    const countEl = document.getElementById('sheetCount');
+    const clearBtn = document.getElementById('sheetClearBtn');
+    const items = filteredHistory();
+
+    countEl.textContent = items.length + (items.length === 1 ? ' file' : ' files');
+    clearBtn.style.display = downloadsHistory.length > 0 ? 'flex' : 'none';
+
+    if (!items.length) {
+      listEl.innerHTML = `
+        <div class="sheet-empty">
+          <div class="sheet-empty-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--coral)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </div>
+          <div class="sheet-empty-title">${downloadsHistory.length ? 'Nothing here' : 'No downloads yet'}</div>
+          <p class="sheet-empty-text">${downloadsHistory.length
+            ? 'Try a different filter to see other downloads.'
+            : 'Your downloaded videos and audio will appear here.'}</p>
+        </div>`;
+      return;
+    }
+
+    let html = '';
+    items.forEach((entry, i) => {
+      const isAudio = entry.format === 'audio';
+      const thumbStyle = entry.thumbnail
+        ? `background-image: url('${entry.thumbnail.replace(/'/g, "\\'")}');`
+        : '';
+      const safePath = entry.filePath.replace(/'/g, "\\'");
+      html += `
+        <div class="dl-item" style="animation-delay:${i * 0.03}s" onclick="openHistoryFile('${safePath}')">
+          <div class="dl-thumb ${isAudio ? 'audio' : 'video'}" style="${thumbStyle}">
+            ${!entry.thumbnail ? `
+              <svg class="dl-thumb-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                ${isAudio
+                  ? '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>'
+                  : '<polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>'}
+              </svg>` : ''}
+            <span class="dl-type-badge">${isAudio ? 'MP3' : 'MP4'}</span>
+          </div>
+          <div class="dl-meta">
+            <div class="dl-title">${escapeHtml(entry.title)}</div>
+            <div class="dl-detail">
+              <span class="mono">${formatSize(entry.size || 0)}</span>
+              <span class="dot"></span>
+              <span>${formatRelativeTime(entry.savedAt)}</span>
+            </div>
+          </div>
+          <div class="dl-actions">
+            <button class="dl-action-btn" onclick="event.stopPropagation(); shareFile('${safePath}')" title="Share">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              </svg>
+            </button>
+            <button class="dl-action-btn" onclick="event.stopPropagation(); deleteHistoryEntry(${i})" title="Remove">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+        </div>`;
+    });
+    listEl.innerHTML = html;
+  }
+
+  function openHistoryFile(path) {
+    if (window.navigator.vibrate) navigator.vibrate(10);
+    openFile(path);
   }
 
   // ─── Helpers ───
@@ -1595,6 +2196,7 @@
 
   // ─── Init ───
   document.addEventListener('DOMContentLoaded', () => {
+    loadDownloadsHistory();
     renderResults();
 
     if (isNative()) {

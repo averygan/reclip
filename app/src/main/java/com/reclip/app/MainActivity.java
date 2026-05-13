@@ -127,10 +127,31 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
+        // Ask the JS side if it can handle this (e.g., close an open sheet).
+        // If not, fall back to default WebView/Activity back behavior.
+        webView.evaluateJavascript(
+            "(function(){" +
+            "  var sheet = document.getElementById('downloadsSheet');" +
+            "  if (sheet && sheet.classList.contains('open')) {" +
+            "    closeDownloads();" +
+            "    return 'handled';" +
+            "  }" +
+            "  return 'unhandled';" +
+            "})()",
+            result -> {
+                if (result != null && result.contains("handled") && !result.contains("unhandled")) {
+                    return; // JS handled it
+                }
+                mainHandler.post(this::performDefaultBack);
+            }
+        );
+    }
+
+    private void performDefaultBack() {
         if (webView.canGoBack()) {
             webView.goBack();
         } else {
-            super.onBackPressed();
+            finish();
         }
     }
 
@@ -338,6 +359,21 @@ public class MainActivity extends AppCompatActivity {
                                     obj.put("file", publicPath);
                                     obj.put("public_uri", publicPath);
                                     Log.i(TAG, "Saved file to: " + publicPath);
+
+                                    // Record in download history
+                                    try {
+                                        addToHistory(
+                                            obj.optString("filename", ""),
+                                            publicPath,
+                                            obj.optLong("size", 0),
+                                            url,
+                                            title,
+                                            formatChoice,
+                                            mimeType
+                                        );
+                                    } catch (Exception histErr) {
+                                        Log.e(TAG, "Failed to record history", histErr);
+                                    }
                                 } else {
                                     obj.put("success", false);
                                     obj.put("error", "Failed to save to Downloads. Check permissions.");
@@ -405,7 +441,16 @@ public class MainActivity extends AppCompatActivity {
                     Intent intent = new Intent(Intent.ACTION_VIEW);
                     intent.setDataAndType(uri, mime);
                     intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                    startActivity(intent);
+
+                    // Always show "Open with..." chooser so users can pick
+                    // their preferred player (VLC, MX Player, system player, etc.)
+                    Intent chooser = Intent.createChooser(intent, "Open with");
+                    if (chooser.resolveActivity(getPackageManager()) != null) {
+                        startActivity(chooser);
+                    } else {
+                        Toast.makeText(MainActivity.this,
+                            "No app available to open this file", Toast.LENGTH_SHORT).show();
+                    }
                 } catch (Exception e) {
                     Log.e(TAG, "openFile error", e);
                     Toast.makeText(MainActivity.this,
@@ -477,6 +522,204 @@ public class MainActivity extends AppCompatActivity {
                 return "{\"success\":false,\"error\":\"" +
                     e.getMessage().replace("\"", "\\\"") + "\"}";
             }
+        }
+
+        /**
+         * Return the download history as a JSON array string.
+         * Each entry: {id, filename, path, size, sourceUrl, title, type, mime, timestamp, exists}
+         */
+        @JavascriptInterface
+        public String getDownloadHistory() {
+            try {
+                org.json.JSONArray arr = loadHistory();
+                // Verify each file still exists (in case user deleted via Files app)
+                for (int i = 0; i < arr.length(); i++) {
+                    org.json.JSONObject item = arr.getJSONObject(i);
+                    String path = item.optString("path", "");
+                    item.put("exists", fileStillExists(path));
+                }
+                return arr.toString();
+            } catch (Exception e) {
+                Log.e(TAG, "getDownloadHistory error", e);
+                return "[]";
+            }
+        }
+
+        /**
+         * Delete a history entry. If alsoDeleteFile=true, also removes
+         * the actual file from disk/MediaStore.
+         */
+        @JavascriptInterface
+        public boolean deleteHistoryItem(String id, boolean alsoDeleteFile) {
+            try {
+                org.json.JSONArray arr = loadHistory();
+                org.json.JSONArray filtered = new org.json.JSONArray();
+                String pathToDelete = null;
+                for (int i = 0; i < arr.length(); i++) {
+                    org.json.JSONObject item = arr.getJSONObject(i);
+                    if (item.optString("id").equals(id)) {
+                        pathToDelete = item.optString("path", null);
+                    } else {
+                        filtered.put(item);
+                    }
+                }
+                saveHistory(filtered);
+
+                if (alsoDeleteFile && pathToDelete != null) {
+                    deleteDownloadedFile(pathToDelete);
+                }
+                return true;
+            } catch (Exception e) {
+                Log.e(TAG, "deleteHistoryItem error", e);
+                return false;
+            }
+        }
+
+        /**
+         * Clear all history (does not delete files).
+         */
+        @JavascriptInterface
+        public boolean clearHistory() {
+            try {
+                saveHistory(new org.json.JSONArray());
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        /**
+         * Open file with chooser dialog so user picks their preferred player.
+         */
+        @JavascriptInterface
+        public void openWithChooser(String pathOrUri, String mime) {
+            mainHandler.post(() -> {
+                try {
+                    Uri uri;
+                    if (pathOrUri.startsWith("content://")) {
+                        uri = Uri.parse(pathOrUri);
+                    } else {
+                        File file = new File(pathOrUri);
+                        if (!file.exists()) {
+                            Toast.makeText(MainActivity.this,
+                                "File no longer exists", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        uri = FileProvider.getUriForFile(
+                            MainActivity.this,
+                            getPackageName() + ".fileprovider", file);
+                    }
+                    String effectiveMime = (mime != null && !mime.isEmpty())
+                        ? mime : guessMimeType(pathOrUri);
+                    Intent intent = new Intent(Intent.ACTION_VIEW);
+                    intent.setDataAndType(uri, effectiveMime);
+                    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                    | Intent.FLAG_ACTIVITY_NEW_TASK);
+                    Intent chooser = Intent.createChooser(intent, "Open with");
+                    chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(chooser);
+                } catch (Exception e) {
+                    Log.e(TAG, "openWithChooser error", e);
+                    Toast.makeText(MainActivity.this,
+                        "Can't open file", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+    }
+
+    // ─── History persistence ───────────────────────────────────────────
+
+    private File getHistoryFile() {
+        return new File(getFilesDir(), "download_history.json");
+    }
+
+    private org.json.JSONArray loadHistory() {
+        File f = getHistoryFile();
+        if (!f.exists()) return new org.json.JSONArray();
+        try {
+            java.io.FileInputStream in = new java.io.FileInputStream(f);
+            byte[] buf = new byte[(int) f.length()];
+            in.read(buf);
+            in.close();
+            return new org.json.JSONArray(new String(buf, "UTF-8"));
+        } catch (Exception e) {
+            Log.e(TAG, "loadHistory failed", e);
+            return new org.json.JSONArray();
+        }
+    }
+
+    private void saveHistory(org.json.JSONArray arr) {
+        try {
+            java.io.FileOutputStream out = new java.io.FileOutputStream(getHistoryFile());
+            out.write(arr.toString().getBytes("UTF-8"));
+            out.close();
+        } catch (Exception e) {
+            Log.e(TAG, "saveHistory failed", e);
+        }
+    }
+
+    private void addToHistory(String filename, String path, long size,
+                              String sourceUrl, String title, String type, String mime) {
+        try {
+            org.json.JSONArray arr = loadHistory();
+            org.json.JSONObject entry = new org.json.JSONObject();
+            entry.put("id", "dl_" + System.currentTimeMillis() + "_" +
+                              (int)(Math.random() * 10000));
+            entry.put("filename", filename);
+            entry.put("path", path);
+            entry.put("size", size);
+            entry.put("sourceUrl", sourceUrl);
+            entry.put("title", title);
+            entry.put("type", type);          // "video" or "audio"
+            entry.put("mime", mime);
+            entry.put("timestamp", System.currentTimeMillis());
+
+            // Insert at front (most recent first)
+            org.json.JSONArray newArr = new org.json.JSONArray();
+            newArr.put(entry);
+            for (int i = 0; i < arr.length(); i++) {
+                newArr.put(arr.get(i));
+            }
+            // Cap at 200 entries
+            if (newArr.length() > 200) {
+                org.json.JSONArray capped = new org.json.JSONArray();
+                for (int i = 0; i < 200; i++) capped.put(newArr.get(i));
+                newArr = capped;
+            }
+            saveHistory(newArr);
+        } catch (Exception e) {
+            Log.e(TAG, "addToHistory failed", e);
+        }
+    }
+
+    private boolean fileStillExists(String pathOrUri) {
+        if (pathOrUri == null || pathOrUri.isEmpty()) return false;
+        try {
+            if (pathOrUri.startsWith("content://")) {
+                Uri uri = Uri.parse(pathOrUri);
+                java.io.InputStream is = getContentResolver().openInputStream(uri);
+                if (is != null) {
+                    is.close();
+                    return true;
+                }
+                return false;
+            } else {
+                return new File(pathOrUri).exists();
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private void deleteDownloadedFile(String pathOrUri) {
+        try {
+            if (pathOrUri.startsWith("content://")) {
+                getContentResolver().delete(Uri.parse(pathOrUri), null, null);
+            } else {
+                new File(pathOrUri).delete();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "deleteDownloadedFile error", e);
         }
     }
 
