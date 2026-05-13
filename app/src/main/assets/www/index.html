@@ -56,8 +56,9 @@
     background: var(--void);
     color: var(--text);
     font-family: var(--sans);
-    overflow-x: hidden;
-    min-height: 100vh;
+    overflow: hidden;
+    height: 100vh;
+    height: 100dvh;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     font-feature-settings: 'ss01', 'cv11';
@@ -67,7 +68,55 @@
     padding-top: var(--safe-top);
     padding-bottom: var(--safe-bot);
     position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    max-width: 540px;
+    margin: 0 auto;
+  }
+
+  /* App shell — locked top section + scrollable middle + locked footer */
+  .app-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .app-top {
+    flex-shrink: 0;
+    width: 100%;
+  }
+
+  .app-content {
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  .app-content::-webkit-scrollbar {
+    width: 3px;
+  }
+  .app-content::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .app-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+  }
+  .app-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  .app-bottom {
+    flex-shrink: 0;
+    width: 100%;
   }
 
   /* ─── Aurora Background ─── */
@@ -134,12 +183,8 @@
 
   /* ─── Header ─── */
   .header {
-    position: sticky; top: 0; z-index: 50;
-    padding: 18px 22px 14px;
+    padding: 14px 22px 10px;
     display: flex; align-items: center; justify-content: space-between;
-    background: linear-gradient(180deg, rgba(5,5,17,0.9) 0%, rgba(5,5,17,0.4) 70%, transparent 100%);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
   }
   .logo-wrap {
     display: flex; align-items: center; gap: 14px;
@@ -235,32 +280,32 @@
 
   /* ─── Hero / Big input area ─── */
   .hero {
-    padding: 8px 22px 24px;
+    padding: 4px 22px 14px;
   }
   .hero-title {
     font-family: var(--display);
     font-style: italic;
-    font-size: 38px;
+    font-size: 30px;
     line-height: 1;
     letter-spacing: -1px;
     color: var(--text);
-    margin: 20px 0 8px;
+    margin: 10px 0 4px;
     animation: hero-rise 1s var(--ease) 0.1s both;
   }
   .hero-title-2 {
     font-family: var(--display);
-    font-size: 38px;
+    font-size: 30px;
     line-height: 1;
     letter-spacing: -1px;
     color: var(--text-soft);
     animation: hero-rise 1s var(--ease) 0.2s both;
   }
   .hero-sub {
-    font-size: 13px;
+    font-size: 12px;
     color: var(--text-mute);
-    margin: 14px 0 24px;
+    margin: 10px 0 16px;
     font-weight: 400;
-    line-height: 1.6;
+    line-height: 1.5;
     animation: hero-rise 1s var(--ease) 0.3s both;
   }
   @keyframes hero-rise {
@@ -270,12 +315,12 @@
 
   /* ─── Format Toggle ─── */
   .formats {
-    display: flex; gap: 10px; margin-bottom: 18px;
+    display: flex; gap: 8px; margin-bottom: 12px;
     animation: hero-rise 1s var(--ease) 0.4s both;
   }
   .fmt-btn {
     flex: 1;
-    padding: 16px 14px;
+    padding: 12px 12px;
     border-radius: var(--r-md);
     background: var(--surface);
     backdrop-filter: blur(20px);
@@ -287,25 +332,25 @@
     text-align: left;
   }
   .fmt-btn .fmt-icon {
-    width: 32px; height: 32px;
-    border-radius: 10px;
+    width: 26px; height: 26px;
+    border-radius: 8px;
     background: rgba(255,255,255,0.05);
     display: flex; align-items: center; justify-content: center;
-    margin-bottom: 10px;
+    margin-bottom: 6px;
     color: var(--text-mute);
     transition: all 0.4s var(--ease);
   }
   .fmt-btn .fmt-label {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--text-soft);
-    margin-bottom: 2px;
+    margin-bottom: 1px;
   }
   .fmt-btn .fmt-meta {
     font-family: var(--mono);
-    font-size: 9px;
+    font-size: 8px;
     color: var(--text-faint);
-    letter-spacing: 1.5px;
+    letter-spacing: 1.2px;
     text-transform: uppercase;
   }
   .fmt-btn.active {
@@ -359,7 +404,7 @@
 
   .url-field {
     position: relative;
-    padding: 18px 20px;
+    padding: 14px 16px;
   }
   .url-input {
     width: 100%;
@@ -368,11 +413,12 @@
     outline: none;
     color: var(--text);
     font-family: var(--mono);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 400;
-    line-height: 1.7;
+    line-height: 1.6;
     resize: none;
-    min-height: 60px;
+    min-height: 44px;
+    max-height: 80px;
     padding-right: 30px;
   }
   .url-input::placeholder { color: var(--text-faint); }
@@ -407,7 +453,7 @@
   }
   .action-btn {
     flex: 1;
-    padding: 16px 14px;
+    padding: 13px 14px;
     background: transparent;
     border: none;
     color: var(--text-soft);
@@ -454,7 +500,7 @@
   /* ─── Section label ─── */
   .section-label {
     display: flex; align-items: center; gap: 12px;
-    margin: 32px 22px 14px;
+    margin: 16px 22px 12px;
     animation: fade-up 0.6s var(--ease) both;
   }
   .section-label .line {
@@ -476,7 +522,7 @@
 
   /* ─── Result Card ─── */
   .result-card {
-    margin: 0 22px 16px;
+    margin: 0 22px 12px;
     background: var(--surface);
     backdrop-filter: blur(30px);
     border: 1px solid var(--border);
@@ -694,14 +740,19 @@
 
   /* ─── Empty State ─── */
   .empty {
-    padding: 30px 22px 60px;
+    padding: 20px 22px 40px;
     text-align: center;
     animation: fade-up 0.6s var(--ease) 0.2s both;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100%;
   }
   .empty-art {
-    width: 96px; height: 96px;
-    margin: 20px auto 24px;
-    border-radius: 28px;
+    width: 72px; height: 72px;
+    margin: 0 auto 18px;
+    border-radius: 22px;
     background: linear-gradient(135deg, rgba(255,84,112,0.1), rgba(157,111,255,0.05));
     border: 1px solid var(--border);
     display: flex; align-items: center; justify-content: center;
@@ -711,7 +762,7 @@
   .empty-art::before {
     content: '';
     position: absolute; inset: 0;
-    border-radius: 28px;
+    border-radius: 22px;
     background: radial-gradient(circle at 30% 30%, rgba(255,84,112,0.2), transparent 60%);
     animation: glow-pulse 3s ease-in-out infinite;
   }
@@ -726,15 +777,15 @@
   .empty-headline {
     font-family: var(--display);
     font-style: italic;
-    font-size: 26px;
+    font-size: 22px;
     line-height: 1.2;
     color: var(--text);
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
   .empty-text {
     color: var(--text-mute);
-    font-size: 13px;
-    line-height: 1.7;
+    font-size: 12px;
+    line-height: 1.6;
     max-width: 280px;
     margin: 0 auto;
   }
@@ -743,8 +794,9 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 6px;
-    margin-top: 22px;
+    gap: 5px;
+    margin-top: 16px;
+    max-width: 300px;
   }
   .tag {
     padding: 5px 12px;
@@ -842,53 +894,39 @@
   .toast.error .toast-dot { background: var(--coral); box-shadow: 0 0 8px var(--coral-glow); }
 
   /* ─── Bottom safe area ─── */
-  .bottom-pad { height: 60px; }
 
   /* ─── Footer credit ─── */
   .footer {
-    padding: 40px 22px 30px;
+    padding: 12px 22px 14px;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
-    gap: 14px;
-    animation: fade-up 0.8s var(--ease) 0.4s both;
+    justify-content: space-between;
+    gap: 12px;
     position: relative;
+    background: linear-gradient(180deg, transparent, rgba(5,5,17,0.85) 40%, rgba(5,5,17,0.95));
+    backdrop-filter: blur(10px);
   }
   .footer::before {
     content: '';
     position: absolute;
     top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 60%;
+    left: 22px;
+    right: 22px;
     height: 1px;
     background: linear-gradient(90deg, transparent, var(--border-strong), transparent);
-  }
-  .footer-logo {
-    font-family: var(--display);
-    font-style: italic;
-    font-size: 20px;
-    color: var(--text-soft);
-    letter-spacing: -0.5px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .footer-logo em {
-    color: var(--coral);
-    font-style: italic;
   }
   .footer-credit {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
+    gap: 7px;
+    padding: 6px 12px;
     background: var(--surface);
     backdrop-filter: blur(20px);
     border: 1px solid var(--border);
     border-radius: 100px;
     color: var(--text-soft);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 500;
     text-decoration: none;
     transition: all 0.4s var(--ease);
@@ -903,35 +941,34 @@
     color: var(--text-mute);
     transition: color 0.3s;
   }
-  .footer-credit:hover svg { color: var(--coral); }
+  .footer-credit:active svg { color: var(--coral); }
   .footer-credit .by {
     color: var(--text-mute);
     font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 1.5px;
+    font-size: 9px;
+    letter-spacing: 1.2px;
     text-transform: uppercase;
-    margin-right: 2px;
   }
   .footer-credit .handle {
     color: var(--text);
     font-weight: 600;
+    font-size: 11px;
   }
-  .footer-tags {
+  .footer-meta {
     display: flex;
+    align-items: center;
     gap: 6px;
-    margin-top: 4px;
-  }
-  .footer-tag {
     font-family: var(--mono);
     font-size: 9px;
-    font-weight: 500;
-    letter-spacing: 1.5px;
     color: var(--text-faint);
-    padding: 4px 10px;
-    border-radius: 100px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid var(--border);
+    letter-spacing: 1.2px;
     text-transform: uppercase;
+  }
+  .footer-meta .dot {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--text-faint);
   }
 </style>
 </head>
@@ -943,117 +980,124 @@
 </div>
 <div class="grain"></div>
 
-<!-- Header -->
-<div class="header">
-  <div class="logo-wrap">
-    <div class="logo">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 3v12m0 0l-5-5m5 5l5-5M3 17v2a2 2 0 002 2h14a2 2 0 002-2v-2"/>
-      </svg>
-    </div>
-    <div class="brand">
-      <h1>Re<em>Clip</em></h1>
-      <div class="sub">Local Media Engine</div>
-    </div>
-  </div>
-  <div class="status-pill" id="status">
-    <span class="status-dot" id="statusDot"></span>
-    <span id="statusLabel">Ready</span>
-  </div>
-</div>
+<div class="app-shell">
 
-<!-- Hero -->
-<div class="hero">
-  <h2 class="hero-title">Capture</h2>
-  <h2 class="hero-title-2">anything, instantly.</h2>
-  <p class="hero-sub">Paste a video URL from any platform. Everything happens on-device — no servers, no logins, no tracking.</p>
-
-  <!-- Format toggle -->
-  <div class="formats">
-    <button class="fmt-btn active" id="fmtVideo" onclick="setFormat('video')">
-      <div class="fmt-icon">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="23 7 16 12 23 17 23 7"/>
-          <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
-        </svg>
+  <!-- ── LOCKED TOP SECTION ── -->
+  <div class="app-top">
+    <!-- Header -->
+    <div class="header">
+      <div class="logo-wrap">
+        <div class="logo">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v12m0 0l-5-5m5 5l5-5M3 17v2a2 2 0 002 2h14a2 2 0 002-2v-2"/>
+          </svg>
+        </div>
+        <div class="brand">
+          <h1>Re<em>Clip</em></h1>
+          <div class="sub">Local Media Engine</div>
+        </div>
       </div>
-      <div class="fmt-label">Video</div>
-      <div class="fmt-meta">MP4 · with quality</div>
-    </button>
-    <button class="fmt-btn" id="fmtAudio" onclick="setFormat('audio')">
-      <div class="fmt-icon">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 18V5l12-2v13"/>
-          <circle cx="6" cy="18" r="3"/>
-          <circle cx="18" cy="16" r="3"/>
-        </svg>
+      <div class="status-pill" id="status">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusLabel">Ready</span>
       </div>
-      <div class="fmt-label">Audio</div>
-      <div class="fmt-meta">MP3 · 192kbps</div>
-    </button>
+    </div>
+
+    <!-- Hero -->
+    <div class="hero">
+      <h2 class="hero-title">Capture</h2>
+      <h2 class="hero-title-2">anything, instantly.</h2>
+      <p class="hero-sub">Paste a video URL from any platform. Everything happens on-device.</p>
+
+      <!-- Format toggle -->
+      <div class="formats">
+        <button class="fmt-btn active" id="fmtVideo" onclick="setFormat('video')">
+          <div class="fmt-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="23 7 16 12 23 17 23 7"/>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+            </svg>
+          </div>
+          <div class="fmt-label">Video</div>
+          <div class="fmt-meta">MP4</div>
+        </button>
+        <button class="fmt-btn" id="fmtAudio" onclick="setFormat('audio')">
+          <div class="fmt-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 18V5l12-2v13"/>
+              <circle cx="6" cy="18" r="3"/>
+              <circle cx="18" cy="16" r="3"/>
+            </svg>
+          </div>
+          <div class="fmt-label">Audio</div>
+          <div class="fmt-meta">MP3 · 192kbps</div>
+        </button>
+      </div>
+
+      <!-- Input -->
+      <div class="input-card" id="inputCard">
+        <div class="url-field">
+          <textarea
+            id="urlInput"
+            class="url-input"
+            placeholder="https://..."
+            rows="2"
+            onfocus="document.getElementById('inputCard').classList.add('focused')"
+            onblur="document.getElementById('inputCard').classList.remove('focused')"
+            oninput="toggleClear()"></textarea>
+          <button id="clearBtn" class="clear-btn" onclick="clearInput()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="input-actions">
+          <button class="action-btn" onclick="pasteFromClipboard()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+            </svg>
+            Paste
+          </button>
+          <button class="action-btn primary" id="fetchBtn" onclick="fetchInfo()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14M13 6l6 6-6 6"/>
+            </svg>
+            Fetch
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <!-- Input -->
-  <div class="input-card" id="inputCard">
-    <div class="url-field">
-      <textarea
-        id="urlInput"
-        class="url-input"
-        placeholder="https://..."
-        rows="2"
-        onfocus="document.getElementById('inputCard').classList.add('focused')"
-        onblur="document.getElementById('inputCard').classList.remove('focused')"
-        oninput="toggleClear()"></textarea>
-      <button id="clearBtn" class="clear-btn" onclick="clearInput()">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
-          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+  <!-- ── INDEPENDENTLY SCROLLABLE RESULTS AREA ── -->
+  <div class="app-content" id="content"></div>
+
+  <!-- ── LOCKED FOOTER ── -->
+  <div class="app-bottom">
+    <div class="footer">
+      <a class="footer-credit" onclick="openGitHub()">
+        <span class="by">By</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.4 3-.405 1.02.005 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
         </svg>
-      </button>
-    </div>
-    <div class="input-actions">
-      <button class="action-btn" onclick="pasteFromClipboard()">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
-          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
-        </svg>
-        Paste
-      </button>
-      <button class="action-btn primary" id="fetchBtn" onclick="fetchInfo()">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M5 12h14M13 6l6 6-6 6"/>
-        </svg>
-        Fetch
-      </button>
+        <span class="handle">waynekosterjr-hub</span>
+      </a>
+      <div class="footer-meta">
+        <span>Open Source</span>
+        <span class="dot"></span>
+        <span>MIT</span>
+      </div>
     </div>
   </div>
+
 </div>
-
-<!-- Results / Empty State -->
-<div id="content"></div>
 
 <!-- Toast -->
 <div class="toast" id="toast">
   <span class="toast-dot"></span>
   <span id="toastText"></span>
 </div>
-
-<!-- Footer credit -->
-<div class="footer">
-  <div class="footer-logo">Re<em>Clip</em></div>
-  <a class="footer-credit" onclick="openGitHub()">
-    <span class="by">Built by</span>
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.4 3-.405 1.02.005 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
-    </svg>
-    <span class="handle">@waynekosterjr-hub</span>
-  </a>
-  <div class="footer-tags">
-    <span class="footer-tag">Open Source</span>
-    <span class="footer-tag">MIT License</span>
-  </div>
-</div>
-
-<div class="bottom-pad"></div>
 
 <script>
   // ─── State ───
@@ -1443,6 +1487,9 @@
           </button>`;
       }
     }
+
+    // Bottom spacer so the last item isn't flush against the footer
+    html += '<div style="height: 14px;"></div>';
 
     c.innerHTML = html;
   }
