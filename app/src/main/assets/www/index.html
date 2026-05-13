@@ -843,6 +843,96 @@
 
   /* ─── Bottom safe area ─── */
   .bottom-pad { height: 60px; }
+
+  /* ─── Footer credit ─── */
+  .footer {
+    padding: 40px 22px 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    animation: fade-up 0.8s var(--ease) 0.4s both;
+    position: relative;
+  }
+  .footer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border-strong), transparent);
+  }
+  .footer-logo {
+    font-family: var(--display);
+    font-style: italic;
+    font-size: 20px;
+    color: var(--text-soft);
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .footer-logo em {
+    color: var(--coral);
+    font-style: italic;
+  }
+  .footer-credit {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--surface);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    color: var(--text-soft);
+    font-size: 12px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.4s var(--ease);
+    cursor: pointer;
+  }
+  .footer-credit:active {
+    transform: scale(0.97);
+    background: var(--surface-2);
+    border-color: var(--border-strong);
+  }
+  .footer-credit svg {
+    color: var(--text-mute);
+    transition: color 0.3s;
+  }
+  .footer-credit:hover svg { color: var(--coral); }
+  .footer-credit .by {
+    color: var(--text-mute);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-right: 2px;
+  }
+  .footer-credit .handle {
+    color: var(--text);
+    font-weight: 600;
+  }
+  .footer-tags {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+  }
+  .footer-tag {
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    color: var(--text-faint);
+    padding: 4px 10px;
+    border-radius: 100px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border);
+    text-transform: uppercase;
+  }
 </style>
 </head>
 <body>
@@ -945,6 +1035,22 @@
 <div class="toast" id="toast">
   <span class="toast-dot"></span>
   <span id="toastText"></span>
+</div>
+
+<!-- Footer credit -->
+<div class="footer">
+  <div class="footer-logo">Re<em>Clip</em></div>
+  <a class="footer-credit" onclick="openGitHub()">
+    <span class="by">Built by</span>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.4 3-.405 1.02.005 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+    </svg>
+    <span class="handle">@waynekosterjr-hub</span>
+  </a>
+  <div class="footer-tags">
+    <span class="footer-tag">Open Source</span>
+    <span class="footer-tag">MIT License</span>
+  </div>
 </div>
 
 <div class="bottom-pad"></div>
@@ -1148,6 +1254,14 @@
 
   function openFile(p) { isNative() ? ReClip.openFile(p) : showToast('Open: ' + p); }
   function shareFile(p) { isNative() ? ReClip.shareFile(p) : showToast('Share: ' + p); }
+  function openGitHub() {
+    const url = 'https://github.com/waynekosterjr-hub/reclip';
+    if (isNative() && ReClip.openUrl) {
+      ReClip.openUrl(url);
+    } else {
+      window.open(url, '_blank');
+    }
+  }
 
   // ─── Helpers ───
   function formatDuration(sec) {
