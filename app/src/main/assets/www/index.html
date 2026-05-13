@@ -183,40 +183,29 @@
 
   /* ─── Header ─── */
   .header {
-    padding: 14px 22px 10px;
+    padding: 12px 18px 8px;
     display: flex; align-items: center; justify-content: space-between;
   }
   .logo-wrap {
-    display: flex; align-items: center; gap: 14px;
+    display: flex; align-items: center; gap: 11px;
     animation: slide-in-left 0.7s var(--ease) both;
   }
   .logo {
-    width: 44px; height: 44px;
+    width: 38px; height: 38px;
     position: relative;
     display: flex; align-items: center; justify-content: center;
-    border-radius: 14px;
+    border-radius: 11px;
     background: linear-gradient(135deg, var(--coral) 0%, var(--violet) 100%);
     box-shadow:
-      0 8px 32px var(--coral-glow),
+      0 6px 24px var(--coral-glow),
       inset 0 1px 0 rgba(255,255,255,0.2);
     overflow: hidden;
   }
-  .logo::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%);
-    animation: shine 4s ease-in-out infinite;
-  }
-  @keyframes shine {
-    0%, 100% { transform: translateX(-100%); }
-    50% { transform: translateX(100%); }
-  }
-  .logo svg { position: relative; z-index: 1; }
+  .logo svg { width: 18px; height: 18px; position: relative; z-index: 1; }
   .brand h1 {
     font-family: var(--display);
     font-weight: 400;
-    font-size: 30px;
+    font-size: 22px;
     letter-spacing: -0.5px;
     line-height: 1;
     color: var(--text);
@@ -228,23 +217,23 @@
   }
   .brand .sub {
     font-family: var(--mono);
-    font-size: 9px;
+    font-size: 8px;
     font-weight: 500;
-    letter-spacing: 2.5px;
+    letter-spacing: 2px;
     color: var(--text-faint);
-    margin-top: 3px;
+    margin-top: 2px;
     text-transform: uppercase;
   }
 
   .status-pill {
-    display: flex; align-items: center; gap: 8px;
-    padding: 7px 14px;
+    display: flex; align-items: center; gap: 7px;
+    padding: 6px 12px;
     border-radius: 100px;
     background: var(--surface);
     backdrop-filter: blur(10px);
     border: 1px solid var(--border);
     font-family: var(--mono);
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 500;
     color: var(--text-soft);
     animation: slide-in-right 0.7s var(--ease) both;
@@ -280,30 +269,30 @@
 
   /* ─── Hero / Big input area ─── */
   .hero {
-    padding: 4px 22px 14px;
+    padding: 14px 20px 16px;
   }
   .hero-title {
     font-family: var(--display);
     font-style: italic;
-    font-size: 30px;
+    font-size: 38px;
     line-height: 1;
-    letter-spacing: -1px;
+    letter-spacing: -1.2px;
     color: var(--text);
-    margin: 10px 0 4px;
+    margin: 4px 0 2px;
     animation: hero-rise 1s var(--ease) 0.1s both;
   }
   .hero-title-2 {
     font-family: var(--display);
-    font-size: 30px;
+    font-size: 38px;
     line-height: 1;
-    letter-spacing: -1px;
+    letter-spacing: -1.2px;
     color: var(--text-soft);
     animation: hero-rise 1s var(--ease) 0.2s both;
   }
   .hero-sub {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-mute);
-    margin: 10px 0 16px;
+    margin: 12px 0 18px;
     font-weight: 400;
     line-height: 1.5;
     animation: hero-rise 1s var(--ease) 0.3s both;
@@ -313,66 +302,58 @@
     to { opacity: 1; transform: translateY(0); }
   }
 
-  /* ─── Format Toggle ─── */
+  /* ─── Format Toggle (segmented pill) ─── */
   .formats {
-    display: flex; gap: 8px; margin-bottom: 12px;
+    display: flex;
+    margin-bottom: 14px;
+    padding: 5px;
+    background: var(--surface);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    position: relative;
     animation: hero-rise 1s var(--ease) 0.4s both;
   }
   .fmt-btn {
     flex: 1;
-    padding: 12px 12px;
-    border-radius: var(--r-md);
-    background: var(--surface);
-    backdrop-filter: blur(20px);
-    border: 1px solid var(--border);
+    padding: 11px 14px;
+    border-radius: 100px;
+    background: transparent;
+    border: none;
     cursor: pointer;
     transition: all 0.4s var(--ease);
     position: relative;
     overflow: hidden;
-    text-align: left;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--text-mute);
   }
   .fmt-btn .fmt-icon {
-    width: 26px; height: 26px;
-    border-radius: 8px;
-    background: rgba(255,255,255,0.05);
+    width: 18px; height: 18px;
     display: flex; align-items: center; justify-content: center;
-    margin-bottom: 6px;
-    color: var(--text-mute);
-    transition: all 0.4s var(--ease);
+    color: currentColor;
   }
   .fmt-btn .fmt-label {
     font-size: 13px;
     font-weight: 600;
-    color: var(--text-soft);
-    margin-bottom: 1px;
+    color: currentColor;
+    letter-spacing: -0.2px;
   }
   .fmt-btn .fmt-meta {
-    font-family: var(--mono);
-    font-size: 8px;
-    color: var(--text-faint);
-    letter-spacing: 1.2px;
-    text-transform: uppercase;
+    display: none;
   }
   .fmt-btn.active {
-    background: linear-gradient(135deg, rgba(255,84,112,0.15), rgba(157,111,255,0.1));
-    border-color: var(--coral);
-    box-shadow: 0 8px 30px var(--coral-glow);
-  }
-  .fmt-btn.active .fmt-icon {
     background: linear-gradient(135deg, var(--coral), var(--violet));
     color: white;
-    box-shadow: 0 4px 16px var(--coral-glow);
+    box-shadow: 0 6px 24px var(--coral-glow);
   }
-  .fmt-btn.active .fmt-label { color: var(--text); }
-  .fmt-btn::before {
-    content: '';
-    position: absolute; inset: 0;
-    background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255,255,255,0.05), transparent 60%);
-    opacity: 0;
-    transition: opacity 0.3s;
-    pointer-events: none;
+  .fmt-btn.active .fmt-icon,
+  .fmt-btn.active .fmt-label {
+    color: white;
   }
-  .fmt-btn:hover::before { opacity: 1; }
+  .fmt-btn::before { display: none; }
 
   /* ─── Input ─── */
   .input-card {
@@ -404,7 +385,7 @@
 
   .url-field {
     position: relative;
-    padding: 14px 16px;
+    padding: 18px 18px;
   }
   .url-input {
     width: 100%;
@@ -413,19 +394,19 @@
     outline: none;
     color: var(--text);
     font-family: var(--mono);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 400;
     line-height: 1.6;
     resize: none;
-    min-height: 44px;
-    max-height: 80px;
-    padding-right: 30px;
+    min-height: 64px;
+    max-height: 130px;
+    padding-right: 32px;
   }
   .url-input::placeholder { color: var(--text-faint); }
   .clear-btn {
     position: absolute;
-    right: 16px; top: 16px;
-    width: 24px; height: 24px;
+    right: 14px; top: 14px;
+    width: 26px; height: 26px;
     border-radius: 50%;
     background: rgba(255,255,255,0.08);
     border: none;
@@ -453,12 +434,12 @@
   }
   .action-btn {
     flex: 1;
-    padding: 13px 14px;
+    padding: 16px 14px;
     background: transparent;
     border: none;
     color: var(--text-soft);
     font-family: var(--sans);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     cursor: pointer;
     display: flex;
@@ -499,8 +480,8 @@
 
   /* ─── Section label ─── */
   .section-label {
-    display: flex; align-items: center; gap: 12px;
-    margin: 16px 22px 12px;
+    display: flex; align-items: center; gap: 10px;
+    margin: 10px 18px 8px;
     animation: fade-up 0.6s var(--ease) both;
   }
   .section-label .line {
@@ -509,9 +490,9 @@
   }
   .section-label .text {
     font-family: var(--mono);
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 600;
-    letter-spacing: 3px;
+    letter-spacing: 2.5px;
     color: var(--text-mute);
     text-transform: uppercase;
   }
@@ -522,11 +503,11 @@
 
   /* ─── Result Card ─── */
   .result-card {
-    margin: 0 22px 12px;
+    margin: 0 18px 10px;
     background: var(--surface);
     backdrop-filter: blur(30px);
     border: 1px solid var(--border);
-    border-radius: var(--r-lg);
+    border-radius: 18px;
     overflow: hidden;
     animation: card-in 0.7s var(--ease) both;
     position: relative;
@@ -565,51 +546,51 @@
   }
   .thumb .duration {
     position: absolute;
-    bottom: 12px; right: 12px;
+    bottom: 9px; right: 9px;
     background: rgba(0,0,0,0.7);
     backdrop-filter: blur(10px);
     color: white;
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
-    padding: 4px 10px;
-    border-radius: 6px;
+    padding: 3px 8px;
+    border-radius: 5px;
     z-index: 1;
   }
 
   .card-body {
-    padding: 16px 18px 18px;
+    padding: 11px 13px 13px;
   }
   .card-title {
-    font-size: 15px;
+    font-size: 13px;
     font-weight: 600;
-    line-height: 1.4;
+    line-height: 1.35;
     color: var(--text);
-    margin-bottom: 4px;
+    margin-bottom: 2px;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    letter-spacing: -0.2px;
+    letter-spacing: -0.1px;
   }
   .card-uploader {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-mute);
-    margin-bottom: 14px;
+    margin-bottom: 10px;
     font-weight: 500;
   }
 
   .quality-pills {
-    display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap;
+    display: flex; gap: 5px; margin-bottom: 10px; flex-wrap: wrap;
   }
   .pill {
-    padding: 6px 12px;
+    padding: 5px 10px;
     border-radius: 100px;
     background: rgba(255,255,255,0.04);
     border: 1px solid var(--border);
     color: var(--text-mute);
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s var(--ease);
@@ -625,20 +606,20 @@
   /* Download Button */
   .dl-btn {
     width: 100%;
-    padding: 14px 16px;
-    border-radius: var(--r-md);
+    padding: 11px 14px;
+    border-radius: 14px;
     border: none;
     background: linear-gradient(135deg, var(--coral) 0%, var(--violet) 100%);
     color: white;
     font-family: var(--sans);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    box-shadow: 0 8px 30px var(--coral-glow);
+    gap: 8px;
+    box-shadow: 0 6px 22px var(--coral-glow);
     transition: all 0.4s var(--ease);
     position: relative;
     overflow: hidden;
@@ -664,7 +645,7 @@
 
   .dl-btn.done {
     background: linear-gradient(135deg, var(--aqua), #00b8a8);
-    box-shadow: 0 8px 30px var(--aqua-glow);
+    box-shadow: 0 6px 22px var(--aqua-glow);
   }
 
   .dl-progress {
@@ -680,29 +661,29 @@
     z-index: 1;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
   }
 
   /* Post-download actions */
   .post-actions {
-    display: flex; gap: 8px; margin-top: 10px;
+    display: flex; gap: 6px; margin-top: 7px;
     animation: fade-up 0.4s var(--ease) both;
   }
   .post-btn {
     flex: 1;
-    padding: 11px;
-    border-radius: 12px;
+    padding: 9px;
+    border-radius: 10px;
     background: rgba(255,255,255,0.05);
     border: 1px solid var(--border);
     color: var(--text-soft);
     font-family: var(--sans);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 500;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 5px;
     transition: all 0.3s var(--ease);
   }
   .post-btn:active {
@@ -712,10 +693,10 @@
 
   /* ─── Skeleton ─── */
   .skel-card {
-    margin: 0 22px 16px;
+    margin: 0 18px 10px;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--r-lg);
+    border-radius: 18px;
     overflow: hidden;
   }
   .skel {
@@ -740,98 +721,146 @@
 
   /* ─── Empty State ─── */
   .empty {
-    padding: 20px 22px 40px;
+    padding: 14px 18px 20px;
     text-align: center;
     animation: fade-up 0.6s var(--ease) 0.2s both;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     min-height: 100%;
-  }
-  .empty-art {
-    width: 72px; height: 72px;
-    margin: 0 auto 18px;
-    border-radius: 22px;
-    background: linear-gradient(135deg, rgba(255,84,112,0.1), rgba(157,111,255,0.05));
-    border: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: center;
-    position: relative;
-    backdrop-filter: blur(20px);
-  }
-  .empty-art::before {
-    content: '';
-    position: absolute; inset: 0;
-    border-radius: 22px;
-    background: radial-gradient(circle at 30% 30%, rgba(255,84,112,0.2), transparent 60%);
-    animation: glow-pulse 3s ease-in-out infinite;
-  }
-  @keyframes glow-pulse {
-    0%, 100% { opacity: 0.6; }
-    50% { opacity: 1; }
-  }
-  .empty-art svg {
-    position: relative;
-    z-index: 1;
-  }
-  .empty-headline {
-    font-family: var(--display);
-    font-style: italic;
-    font-size: 22px;
-    line-height: 1.2;
-    color: var(--text);
-    margin-bottom: 8px;
   }
   .empty-text {
     color: var(--text-mute);
-    font-size: 12px;
-    line-height: 1.6;
+    font-size: 11px;
+    line-height: 1.5;
     max-width: 280px;
-    margin: 0 auto;
+    margin: 0 auto 14px;
   }
 
+  /* Feature stat cards */
+  .feat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+    margin-bottom: 12px;
+  }
+  .feat {
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    text-align: left;
+    backdrop-filter: blur(20px);
+    animation: tag-in 0.5s var(--ease) both;
+    position: relative;
+    overflow: hidden;
+  }
+  .feat:nth-child(1) { animation-delay: 0.2s; }
+  .feat:nth-child(2) { animation-delay: 0.3s; }
+  .feat:nth-child(3) { animation-delay: 0.4s; }
+  .feat:nth-child(4) { animation-delay: 0.5s; }
+  .feat-icon {
+    width: 24px; height: 24px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 6px;
+    background: rgba(255,255,255,0.05);
+  }
+  .feat-icon.coral { color: var(--coral); background: rgba(255,84,112,0.12); }
+  .feat-icon.aqua { color: var(--aqua); background: rgba(0,217,200,0.12); }
+  .feat-icon.violet { color: var(--violet); background: rgba(157,111,255,0.12); }
+  .feat-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+    margin-bottom: 2px;
+    letter-spacing: -0.1px;
+  }
+  .feat-sub {
+    font-size: 9.5px;
+    color: var(--text-mute);
+    line-height: 1.3;
+  }
+
+  /* Supported sites strip */
+  .supported-strip {
+    width: 100%;
+    margin-top: 4px;
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    backdrop-filter: blur(20px);
+    text-align: left;
+    animation: tag-in 0.6s var(--ease) 0.6s both;
+  }
+  .supported-strip .header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 7px;
+  }
+  .supported-strip .header-row .label {
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 1.8px;
+    color: var(--text-mute);
+    text-transform: uppercase;
+  }
+  .supported-strip .header-row .count {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--aqua);
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
   .supported {
     display: flex;
     flex-wrap: wrap;
-    justify-content: center;
-    gap: 5px;
-    margin-top: 16px;
-    max-width: 300px;
+    gap: 4px;
   }
   .tag {
-    padding: 5px 12px;
+    padding: 4px 9px;
     border-radius: 100px;
-    background: rgba(255,255,255,0.03);
+    background: rgba(255,255,255,0.04);
     border: 1px solid var(--border);
     font-family: var(--mono);
-    font-size: 10px;
+    font-size: 9.5px;
     font-weight: 500;
-    color: var(--text-mute);
-    letter-spacing: 0.5px;
+    color: var(--text-soft);
+    letter-spacing: 0.3px;
     animation: tag-in 0.5s var(--ease) both;
   }
-  .tag:nth-child(1) { animation-delay: 0.4s; }
-  .tag:nth-child(2) { animation-delay: 0.5s; }
-  .tag:nth-child(3) { animation-delay: 0.6s; }
-  .tag:nth-child(4) { animation-delay: 0.7s; }
-  .tag:nth-child(5) { animation-delay: 0.8s; }
-  .tag:nth-child(6) { animation-delay: 0.9s; }
+  .tag:nth-child(1) { animation-delay: 0.7s; }
+  .tag:nth-child(2) { animation-delay: 0.75s; }
+  .tag:nth-child(3) { animation-delay: 0.8s; }
+  .tag:nth-child(4) { animation-delay: 0.85s; }
+  .tag:nth-child(5) { animation-delay: 0.9s; }
+  .tag:nth-child(6) { animation-delay: 0.95s; }
+  .tag:nth-child(7) { animation-delay: 1.0s; }
+  .tag:nth-child(8) { animation-delay: 1.05s; }
   @keyframes tag-in {
-    from { opacity: 0; transform: scale(0.8); }
-    to { opacity: 1; transform: scale(1); }
+    from { opacity: 0; transform: scale(0.85) translateY(4px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
   }
 
   /* ─── Download All ─── */
   .dl-all {
-    margin: 4px 22px 30px;
-    padding: 14px;
-    width: calc(100% - 44px);
-    border-radius: var(--r-md);
+    margin: 2px 18px 16px;
+    padding: 11px;
+    width: calc(100% - 36px);
+    border-radius: 14px;
     background: transparent;
     border: 1.5px dashed var(--border-strong);
     color: var(--coral);
     font-family: var(--sans);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     display: flex;
@@ -1013,24 +1042,22 @@
       <div class="formats">
         <button class="fmt-btn active" id="fmtVideo" onclick="setFormat('video')">
           <div class="fmt-icon">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polygon points="23 7 16 12 23 17 23 7"/>
               <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
             </svg>
           </div>
           <div class="fmt-label">Video</div>
-          <div class="fmt-meta">MP4</div>
         </button>
         <button class="fmt-btn" id="fmtAudio" onclick="setFormat('audio')">
           <div class="fmt-icon">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M9 18V5l12-2v13"/>
               <circle cx="6" cy="18" r="3"/>
               <circle cx="18" cy="16" r="3"/>
             </svg>
           </div>
           <div class="fmt-label">Audio</div>
-          <div class="fmt-meta">MP3 · 192kbps</div>
         </button>
       </div>
 
@@ -1373,22 +1400,69 @@
     if (!results.length) {
       c.innerHTML = `
         <div class="empty">
-          <div class="empty-art">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--coral)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 2v8M12 10l-3-3M12 10l3-3"/>
-              <path d="M5 17l1.5-7.5h11L19 17"/>
-              <rect x="3" y="17" width="18" height="4" rx="1"/>
-            </svg>
+          <p class="empty-text">Powerful local downloads — no servers, no logins, no tracking.</p>
+
+          <div class="feat-grid">
+            <div class="feat">
+              <div class="feat-icon coral">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="3" width="20" height="14" rx="2"/>
+                  <line x1="8" y1="21" x2="16" y2="21"/>
+                  <line x1="12" y1="17" x2="12" y2="21"/>
+                </svg>
+              </div>
+              <div class="feat-title">On-device</div>
+              <div class="feat-sub">Everything runs locally</div>
+            </div>
+            <div class="feat">
+              <div class="feat-icon aqua">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                </svg>
+              </div>
+              <div class="feat-title">Instant fetch</div>
+              <div class="feat-sub">yt-dlp under the hood</div>
+            </div>
+            <div class="feat">
+              <div class="feat-icon violet">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+              </div>
+              <div class="feat-title">Private</div>
+              <div class="feat-sub">No data leaves device</div>
+            </div>
+            <div class="feat">
+              <div class="feat-icon coral">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 18V5l12-2v13"/>
+                  <circle cx="6" cy="18" r="3"/>
+                  <circle cx="18" cy="16" r="3"/>
+                </svg>
+              </div>
+              <div class="feat-title">MP3 ready</div>
+              <div class="feat-sub">Audio extraction built-in</div>
+            </div>
           </div>
-          <h2 class="empty-headline">Ready when<br><em>you are.</em></h2>
-          <p class="empty-text">Drop a video URL above and we'll handle the rest. Everything stays on your device.</p>
-          <div class="supported">
-            <span class="tag">YouTube</span>
-            <span class="tag">TikTok</span>
-            <span class="tag">Instagram</span>
-            <span class="tag">X / Twitter</span>
-            <span class="tag">Reddit</span>
-            <span class="tag">1000+ more</span>
+
+          <div class="supported-strip">
+            <div class="header-row">
+              <span class="label">Supported</span>
+              <span class="count">1000+ SITES</span>
+            </div>
+            <div class="supported">
+              <span class="tag">YouTube</span>
+              <span class="tag">TikTok</span>
+              <span class="tag">Instagram</span>
+              <span class="tag">X / Twitter</span>
+              <span class="tag">Reddit</span>
+              <span class="tag">Twitch</span>
+              <span class="tag">Vimeo</span>
+              <span class="tag">SoundCloud</span>
+              <span class="tag">Facebook</span>
+              <span class="tag">+ more</span>
+            </div>
           </div>
         </div>`;
       return;
