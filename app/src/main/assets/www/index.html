@@ -194,14 +194,10 @@
     width: 38px; height: 38px;
     position: relative;
     display: flex; align-items: center; justify-content: center;
-    border-radius: 11px;
-    background: linear-gradient(135deg, var(--coral) 0%, var(--violet) 100%);
-    box-shadow:
-      0 6px 24px var(--coral-glow),
-      inset 0 1px 0 rgba(255,255,255,0.2);
-    overflow: hidden;
+    border-radius: 50%;
+    box-shadow: 0 6px 24px var(--coral-glow);
   }
-  .logo svg { width: 18px; height: 18px; position: relative; z-index: 1; }
+  .logo img { width: 100%; height: 100%; object-fit: contain; }
   .brand h1 {
     font-family: var(--display);
     font-weight: 400;
@@ -1357,9 +1353,7 @@
     <div class="header">
       <div class="logo-wrap">
         <div class="logo">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 3v12m0 0l-5-5m5 5l5-5M3 17v2a2 2 0 002 2h14a2 2 0 002-2v-2"/>
-          </svg>
+          <img src="logo.png" alt="ReClip" />
         </div>
         <div class="brand">
           <h1>Re<em>Clip</em></h1>
