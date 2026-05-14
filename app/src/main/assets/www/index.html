@@ -1335,6 +1335,96 @@
     border-radius: 50%;
     background: var(--text-faint);
   }
+
+  /* ════════════════════════════════════════════
+     RESPONSIVE — tablet scale-up + desktop two-column.
+     Phone (≤639px) keeps the base rules above, untouched.
+     ════════════════════════════════════════════ */
+
+  /* ── Tablet: single column, scaled up ── */
+  @media (min-width: 640px) and (max-width: 1023px) {
+    body { max-width: 760px; }
+
+    .header { padding: 16px 28px 10px; }
+    .brand h1 { font-size: 26px; }
+    .header-btn { width: 42px; height: 42px; }
+
+    .hero { padding: 20px 28px 22px; }
+    .hero-title, .hero-title-2 { font-size: clamp(38px, 6.4vw, 52px); }
+    .hero-sub { font-size: 15px; }
+
+    .fmt-btn { padding: 14px 16px; }
+    .fmt-btn .fmt-label { font-size: 14px; }
+
+    .url-input { font-size: 15px; }
+    .action-btn { padding: 16px; font-size: 15px; }
+
+    .result-card, .skel-card { margin: 0 28px 12px; }
+    .section-label { margin: 12px 28px 8px; }
+    .dl-all { margin: 2px 28px 16px; width: calc(100% - 56px); }
+
+    .feat-grid { gap: 10px; }
+    .feat { padding: 13px 15px; }
+
+    .footer { padding: 14px 28px 16px; }
+
+    .sheet { max-width: 760px; }
+
+    /* aurora — scale blobs for the wider canvas */
+    .aurora::before { width: 700px; height: 700px; }
+    .aurora::after  { width: 820px; height: 820px; }
+    .aurora-3       { width: 560px; height: 560px; }
+  }
+
+  /* ── Desktop: two-column layout (controls left, results right) ── */
+  @media (min-width: 1024px) {
+    body { max-width: 1100px; }
+
+    .app-shell {
+      display: grid;
+      grid-template-columns: minmax(380px, 440px) 1fr;
+      grid-template-rows: auto 1fr auto;
+      grid-template-areas:
+        "header header"
+        "left   right"
+        "footer footer";
+      column-gap: 28px;
+    }
+    .header      { grid-area: header; padding: 16px 8px 12px; border-bottom: 1px solid var(--border); }
+    .app-top     { grid-area: left;  overflow-y: auto; min-height: 0; }
+    .app-content { grid-area: right; padding: 8px 24px 0 0; }
+    .app-bottom  { grid-area: footer; }
+
+    .hero { padding: 28px 0 28px 8px; }
+    .hero-title, .hero-title-2 { font-size: clamp(48px, 4vw, 60px); }
+    .hero-sub { font-size: 15px; }
+
+    .fmt-btn { padding: 14px 16px; }
+    .url-input { font-size: 15px; }
+    .action-btn { padding: 16px; font-size: 15px; }
+
+    /* results: single column; gutters come from the column padding */
+    .result-card, .skel-card { margin: 0 0 14px; }
+    .section-label { margin: 4px 0 10px; }
+    .dl-all { margin: 2px 0 16px; width: 100%; }
+
+    .footer { padding: 14px 8px 16px; }
+
+    /* downloads sheet → right-anchored panel, not full-width */
+    .sheet {
+      left: auto; right: 24px;
+      max-width: 560px;
+      transform: translateY(100%);
+      border-radius: 26px;
+      height: min(88vh, 720px);
+    }
+    .sheet.open { transform: translateY(0); }
+
+    /* aurora — larger, softer blobs for the desktop canvas */
+    .aurora::before { width: 900px;  height: 900px;  top: -220px; left: -160px; opacity: 0.4; }
+    .aurora::after  { width: 1100px; height: 1100px; bottom: -300px; right: -220px; }
+    .aurora-3       { width: 760px;  height: 760px;  filter: blur(110px); }
+  }
 </style>
 </head>
 <body>
@@ -1347,35 +1437,35 @@
 
 <div class="app-shell">
 
-  <!-- ── LOCKED TOP SECTION ── -->
-  <div class="app-top">
-    <!-- Header -->
-    <div class="header">
-      <div class="logo-wrap">
-        <div class="logo">
-          <img src="logo.png" alt="ReClip" />
-        </div>
-        <div class="brand">
-          <h1>Re<em>Clip</em></h1>
-          <div class="sub">Local Media Engine</div>
-        </div>
+  <!-- Header -->
+  <div class="header">
+    <div class="logo-wrap">
+      <div class="logo">
+        <img src="logo.png" alt="ReClip" />
       </div>
-      <div class="header-actions">
-        <button class="header-btn" id="downloadsBtn" onclick="openDownloads()" aria-label="View downloads">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="7 10 12 15 17 10"/>
-            <line x1="12" y1="15" x2="12" y2="3"/>
-          </svg>
-          <span class="header-btn-badge" id="downloadsBadge" style="display:none">0</span>
-        </button>
-        <div class="status-pill" id="status">
-          <span class="status-dot" id="statusDot"></span>
-          <span id="statusLabel">Ready</span>
-        </div>
+      <div class="brand">
+        <h1>Re<em>Clip</em></h1>
+        <div class="sub">Local Media Engine</div>
       </div>
     </div>
+    <div class="header-actions">
+      <button class="header-btn" id="downloadsBtn" onclick="openDownloads()" aria-label="View downloads">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <span class="header-btn-badge" id="downloadsBadge" style="display:none">0</span>
+      </button>
+      <div class="status-pill" id="status">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusLabel">Ready</span>
+      </div>
+    </div>
+  </div>
 
+  <!-- ── LOCKED TOP SECTION ── -->
+  <div class="app-top">
     <!-- Hero -->
     <div class="hero">
       <h2 class="hero-title">Capture</h2>
