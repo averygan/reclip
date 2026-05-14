@@ -18,14 +18,14 @@
     --border: rgba(255, 255, 255, 0.06);
     --border-strong: rgba(255, 255, 255, 0.12);
 
-    /* Accent: liquid coral with electric undertones */
-    --coral: #ff5470;
-    --coral-bright: #ff7a8f;
-    --coral-glow: rgba(255, 84, 112, 0.35);
-    --aqua: #00d9c8;
-    --aqua-glow: rgba(0, 217, 200, 0.35);
-    --violet: #9d6fff;
-    --violet-glow: rgba(157, 111, 255, 0.3);
+    /* Accent: neon-ring palette — magenta, azure, electric violet */
+    --coral: #e71885;
+    --coral-bright: #ff4fa3;
+    --coral-glow: rgba(231, 24, 133, 0.35);
+    --aqua: #0da3ef;
+    --aqua-glow: rgba(13, 163, 239, 0.35);
+    --violet: #a13af0;
+    --violet-glow: rgba(161, 58, 240, 0.3);
 
     /* Typography */
     --text: rgba(245, 245, 255, 0.95);
@@ -497,10 +497,10 @@
     color: rgba(255,255,255,0.3);
   }
   .dl-thumb.audio {
-    background: linear-gradient(135deg, rgba(157,111,255,0.2), rgba(255,84,112,0.1));
+    background: linear-gradient(135deg, rgba(161,58,240,0.2), rgba(231,24,133,0.1));
   }
   .dl-thumb.video {
-    background: linear-gradient(135deg, rgba(0,217,200,0.15), rgba(70,130,255,0.1));
+    background: linear-gradient(135deg, rgba(13,163,239,0.15), rgba(70,130,255,0.1));
   }
   .dl-type-badge {
     position: absolute;
@@ -582,7 +582,7 @@
     width: 60px; height: 60px;
     margin: 0 auto 16px;
     border-radius: 18px;
-    background: linear-gradient(135deg, rgba(255,84,112,0.08), rgba(157,111,255,0.04));
+    background: linear-gradient(135deg, rgba(231,24,133,0.08), rgba(161,58,240,0.04));
     border: 1px solid var(--border);
     display: flex;
     align-items: center;
@@ -704,7 +704,7 @@
   }
   .input-card.focused {
     border-color: var(--coral);
-    box-shadow: 0 0 0 4px var(--coral-glow), 0 20px 60px rgba(255,84,112,0.2);
+    box-shadow: 0 0 0 4px var(--coral-glow), 0 20px 60px rgba(231,24,133,0.2);
     transform: translateY(-2px);
   }
   .input-card::before {
@@ -1106,9 +1106,9 @@
     margin-bottom: 6px;
     background: rgba(255,255,255,0.05);
   }
-  .feat-icon.coral { color: var(--coral); background: rgba(255,84,112,0.12); }
-  .feat-icon.aqua { color: var(--aqua); background: rgba(0,217,200,0.12); }
-  .feat-icon.violet { color: var(--violet); background: rgba(157,111,255,0.12); }
+  .feat-icon.coral { color: var(--coral); background: rgba(231,24,133,0.12); }
+  .feat-icon.aqua { color: var(--aqua); background: rgba(13,163,239,0.12); }
+  .feat-icon.violet { color: var(--violet); background: rgba(161,58,240,0.12); }
   .feat-title {
     font-size: 11px;
     font-weight: 700;
@@ -1207,7 +1207,7 @@
     animation: fade-up 0.5s var(--ease) both;
   }
   .dl-all:active {
-    background: rgba(255,84,112,0.05);
+    background: rgba(231,24,133,0.05);
     border-color: var(--coral);
     transform: scale(0.98);
   }
