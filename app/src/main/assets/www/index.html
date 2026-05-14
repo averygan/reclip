@@ -1341,8 +1341,10 @@
      Phone (≤639px) keeps the base rules above, untouched.
      ════════════════════════════════════════════ */
 
-  /* ── Tablet: single column, scaled up ── */
-  @media (min-width: 640px) and (max-width: 1023px) {
+  /* ── Tablet: single column, scaled up ──
+     Gated on min-height so a phone in landscape (wide but short) does
+     NOT trip this and instead keeps the phone / landscape rules. ── */
+  @media (min-width: 640px) and (max-width: 1023px) and (min-height: 600px) {
     body { max-width: 760px; }
 
     .header { padding: 16px 28px 10px; }
@@ -1376,8 +1378,9 @@
     .aurora-3       { width: 560px; height: 560px; }
   }
 
-  /* ── Desktop: two-column layout (controls left, results right) ── */
-  @media (min-width: 1024px) {
+  /* ── Desktop: two-column layout (controls left, results right) ──
+     Also gated on min-height so a large phone in landscape can't trip it. ── */
+  @media (min-width: 1024px) and (min-height: 600px) {
     body { max-width: 1100px; }
 
     .app-shell {
@@ -1424,6 +1427,22 @@
     .aurora::before { width: 900px;  height: 900px;  top: -220px; left: -160px; opacity: 0.4; }
     .aurora::after  { width: 1100px; height: 1100px; bottom: -300px; right: -220px; }
     .aurora-3       { width: 760px;  height: 760px;  filter: blur(110px); }
+  }
+
+  /* ── Short landscape (phones held sideways) ──
+     The locked header / scrolling-middle / locked-footer shell can't fit
+     in ~360-430px of height — the hero alone overflows it. Let the whole
+     shell scroll as one document and compact the hero. ── */
+  @media (orientation: landscape) and (max-height: 480px) {
+    html, body { overflow-y: auto; height: auto; min-height: 100dvh; }
+    .app-shell { overflow: visible; height: auto; min-height: 100dvh; }
+    .app-content { overflow: visible; flex: 0 0 auto; }
+
+    .header { padding: 10px 18px 6px; }
+
+    .hero { padding: 10px 20px 14px; }
+    .hero-title, .hero-title-2 { font-size: 30px; }
+    .hero-sub { margin: 8px 0 12px; font-size: 12px; }
   }
 </style>
 </head>
