@@ -2,9 +2,14 @@ name: Build ReClip APK
 
 on:
   push:
-    branches: [ main, android, Codex ]
+    # Run on every branch push. Avoids the trap of having to add each new
+    # working branch to a hardcoded list before CI will build it.
+    branches: [ '**' ]
+    tags-ignore: [ '**' ]
   pull_request:
-    branches: [ main, android, Codex ]
+    # PRs only need to build when they target a trunk-style branch — running
+    # again on PR open/sync to a dev branch would just duplicate the push run.
+    branches: [ main, android ]
   workflow_dispatch:
 
 jobs:
