@@ -12,6 +12,10 @@ def spotifyClientSecret = providers.gradleProperty("SPOTIFY_CLIENT_SECRET")
     .orElse(providers.environmentVariable("SPOTIFY_CLIENT_SECRET"))
     .orElse("")
     .get()
+def buildPythonPath = providers.gradleProperty("BUILD_PYTHON")
+    .orElse(providers.environmentVariable("BUILD_PYTHON"))
+    .orElse("")
+    .get()
 
 android {
     namespace 'com.reclip.app'
@@ -23,14 +27,6 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0.0"
-
-        // Chaquopy Python config
-        python {
-            version "3.11"
-            pip {
-                install "yt-dlp"
-            }
-        }
 
         ndk {
             abiFilters "arm64-v8a", "x86_64"
@@ -82,6 +78,18 @@ android {
     packagingOptions {
         resources {
             excludes += ['/META-INF/{AL2.0,LGPL2.1}']
+        }
+    }
+}
+
+chaquopy {
+    defaultConfig {
+        version = "3.11"
+        if (buildPythonPath) {
+            buildPython(buildPythonPath)
+        }
+        pip {
+            install("yt-dlp")
         }
     }
 }

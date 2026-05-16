@@ -73,6 +73,9 @@ object RevenueCatManager {
     fun isPro(): Boolean =
         cachedCustomerInfo?.entitlements?.get(ENTITLEMENT_PRO)?.isActive == true
 
+    /** Current RevenueCat app user id used by the native SDK instance. */
+    fun getAppUserId(): String = Purchases.sharedInstance.appUserID
+
     /** Pull latest customer info; updates the cache and fires listeners. */
     fun refreshCustomerInfo(onComplete: ((CustomerInfo?) -> Unit)?) {
         Purchases.sharedInstance.getCustomerInfo(object : ReceiveCustomerInfoCallback {

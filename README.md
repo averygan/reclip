@@ -102,7 +102,10 @@ git checkout android
 adb install app/build/outputs/apk/debug/app-debug.apk
 ```
 
-**Prerequisites:** Android Studio Hedgehog+, JDK 17, Android SDK 34, Android NDK r27c
+**Prerequisites:** Android Studio Hedgehog+ or newer, JDK 21 LTS, Android SDK 34, Android NDK r27c
+
+Set `JAVA_HOME` to your JDK 21 install before building locally.
+If your machine defaults to Python 3.14 or another incompatible version for Chaquopy, set `BUILD_PYTHON` to a Python 3.11 executable before running Gradle.
 
 > 💡 **First build takes ~10 min** — Chaquopy packages Python 3.11 and yt-dlp into the APK.
 
@@ -178,7 +181,7 @@ reclip/
 │       └── res/                       🎨 Theme, icon, paths
 ├── scripts/
 │   └── build_ffmpeg.sh                🛠️ Cross-compile FFmpeg + LAME
-├── build.gradle                       ⚙️ Root config (AGP 8.2.2, Chaquopy 15)
+├── build.gradle                       ⚙️ Root config (AGP 8.5.2, Chaquopy 15)
 └── settings.gradle
 ```
 
@@ -210,7 +213,7 @@ The GitHub Actions workflow has two jobs:
 
 ### Job 2 — `build-apk`
 - Pulls cached FFmpeg binaries
-- Generates Gradle wrapper (Gradle 8.2 for Chaquopy compatibility)
+- Uses the checked-in Gradle wrapper (Gradle 8.7, JDK 21 compatible)
 - Builds debug + release APKs
 - Uploads as artifacts (30-day retention)
 
@@ -238,10 +241,10 @@ The GitHub Actions workflow has two jobs:
 |-------|------------|
 | **UI** | HTML5, CSS3 (variables, backdrop-filter, animations), Vanilla JS |
 | **Bridge** | Android WebView + `@JavascriptInterface` |
-| **Native** | Java 17, AndroidX, Material Components |
+| **Native** | Java 17 bytecode on JDK 21, AndroidX, Material Components |
 | **Engine** | Python 3.11, yt-dlp (latest), Chaquopy 15.0.1 |
 | **Media** | FFmpeg 7.1 (static build, libmp3lame) |
-| **Build** | Gradle 8.2, AGP 8.2.2, Android SDK 34, NDK r27c |
+| **Build** | Gradle 8.7, AGP 8.5.2, Android SDK 34, NDK r27c |
 | **CI** | GitHub Actions (Ubuntu) |
 
 ---

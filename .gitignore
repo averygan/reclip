@@ -18,3 +18,5 @@ assets/*.mov
 .cxx
 local.properties
 /app/build
+/.tools
+/node_modules

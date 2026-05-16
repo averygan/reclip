@@ -73,10 +73,10 @@ jobs:
           name: ffmpeg-binaries
           path: app/src/main/jniLibs/
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
 
       - name: Setup Android SDK
@@ -91,14 +91,13 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: ${{ runner.os }}-gradle-
 
-      - name: Setup Gradle 8.2
+      - name: Setup Gradle 8.7
         uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: '8.2'
+          gradle-version: '8.7'
 
-      - name: Generate Gradle wrapper
+      - name: Ensure Gradle wrapper is executable
         run: |
-          gradle wrapper --gradle-version 8.2 --distribution-type bin
           chmod +x gradlew
 
       - name: Build Debug APK
