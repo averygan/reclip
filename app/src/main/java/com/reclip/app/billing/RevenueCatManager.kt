@@ -36,7 +36,7 @@ object RevenueCatManager {
     private const val TAG = "RevenueCatManager"
 
     // Sandbox / test key — replace via BuildConfig or remote config before shipping.
-    private const val API_KEY = "test_RqnYeLnlWXtZFVPLyXeCZInFYVm"
+    private const val API_KEY = "rcb_sb_RxDiRUgSVZVzSHkACLkcJHwVi"
 
     /** Entitlement identifier (lowercase snake_case, matches the RC dashboard). */
     const val ENTITLEMENT_PRO = "reclip_pro"
@@ -54,16 +54,16 @@ object RevenueCatManager {
 
     /** Call once from Application.onCreate. */
     fun configure(context: Context) {
-        // The native Android Purchases SDK accepts Google Play (`goog_*`) and
-        // older platform-agnostic sandbox (`test_*`) keys. Web Billing keys
-        // (`rcb_*`) are for the JS web paywall (now removed) and crash this
-        // SDK on init. If we don't have a supported key, skip native init so
-        // the bridge methods degrade to safe no-ops instead of throwing.
-        val supported = API_KEY.startsWith("goog_") || API_KEY.startsWith("test_")
-        if (!supported) {
-            Log.w(TAG, "Skipping native RevenueCat init: API_KEY prefix " +
-                "'${API_KEY.substringBefore('_')}_' isn't accepted by the Android " +
-                "SDK. Use a goog_ or test_ key from the RC dashboard.")
+        // The native Android Purchases SDK only accepts Google Play keys
+        // (`goog_*`). Web Billing keys (`rcb_*`) are for the JS web paywall in
+        // assets/www/revenuecat-paywall.bundle.js and would crash this SDK on
+        // init. If we don't have a `goog_` key, skip native init entirely so
+        // the web paywall flow keeps working and the JS bridge degrades to
+        // safe no-ops instead of throwing.
+        if (!API_KEY.startsWith("goog_")) {
+            Log.w(TAG, "Skipping native RevenueCat init: API_KEY prefix is " +
+                "'${API_KEY.substringBefore('_')}_', not 'goog_'. The web paywall " +
+                "continues to use its own key in revenuecat-paywall.bundle.js.")
             return
         }
         Purchases.logLevel = LogLevel.DEBUG  // Remove (or set to WARN) in production
