@@ -4,6 +4,15 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+def spotifyClientId = providers.gradleProperty("SPOTIFY_CLIENT_ID")
+    .orElse(providers.environmentVariable("SPOTIFY_CLIENT_ID"))
+    .orElse("")
+    .get()
+def spotifyClientSecret = providers.gradleProperty("SPOTIFY_CLIENT_SECRET")
+    .orElse(providers.environmentVariable("SPOTIFY_CLIENT_SECRET"))
+    .orElse("")
+    .get()
+
 android {
     namespace 'com.reclip.app'
     compileSdk 34
@@ -20,12 +29,16 @@ android {
             version "3.11"
             pip {
                 install "yt-dlp"
+                install "git+https://github.com/waynekosterjr-hub/spotify-downloader.git@28d1e3efa2dd9354fe3273708d39f97512fd7790"
             }
         }
 
         ndk {
             abiFilters "arm64-v8a", "x86_64"
         }
+
+        buildConfigField "String", "SPOTIFY_CLIENT_ID", "\"${spotifyClientId.replace('\\', '\\\\').replace('"', '\\"')}\""
+        buildConfigField "String", "SPOTIFY_CLIENT_SECRET", "\"${spotifyClientSecret.replace('\\', '\\\\').replace('"', '\\"')}\""
     }
 
     // Ensure native libs (including ffmpeg) are extracted to nativeLibraryDir
@@ -63,6 +76,7 @@ android {
 
     buildFeatures {
         viewBinding true
+        buildConfig true
     }
 
     // kotlinx-coroutines bundles duplicate META-INF licenses; exclude them.

@@ -1768,8 +1768,16 @@
     for (const url of urls) {
       const data = await nativeCall('fetchInfo', [url]);
       if (data.success) {
-        data.url = data.url || url;
-        results.push(data);
+        if (Array.isArray(data.items) && data.items.length) {
+          data.items.forEach(item => {
+            item.url = item.url || item.spotifyUrl || url;
+            item.source = item.source || data.source || 'spotify';
+            results.push(item);
+          });
+        } else {
+          data.url = data.url || url;
+          results.push(data);
+        }
       } else {
         showToast(data.error || 'Failed to fetch', true);
       }
@@ -1818,7 +1826,7 @@
 
     const data = await nativeCall('startDownload', [
       item.url,
-      currentFormat === 'audio' ? 'audio' : 'video',
+      item.audioOnly ? 'audio' : (currentFormat === 'audio' ? 'audio' : 'video'),
       qualityId || '',
       item.title || '',
     ]);
@@ -1839,7 +1847,8 @@
         thumbnail: item.thumbnail || '',
         uploader: item.uploader || '',
         duration: item.duration || 0,
-        format: currentFormat,
+        format: item.audioOnly ? 'audio' : currentFormat,
+        source: item.source || '',
         sourceUrl: item.url,
         savedAt: Date.now(),
       });
@@ -2207,6 +2216,7 @@
               <span class="tag">Twitch</span>
               <span class="tag">Vimeo</span>
               <span class="tag">SoundCloud</span>
+              <span class="tag">Spotify</span>
               <span class="tag">Facebook</span>
               <span class="tag">+ more</span>
             </div>
@@ -2226,6 +2236,10 @@
       const state = downloadStates[item.url] || {};
       const isDown = state.status === 'downloading';
       const isDone = state.status === 'done';
+      const isAudioOnly = !!item.audioOnly;
+      const downloadKind = isAudioOnly || currentFormat === 'audio' ? 'Audio' : 'Video';
+      const metaLine = [item.uploader, item.playlist ? `${item.playlistPosition || ''} ${item.playlist}`.trim() : '']
+        .filter(Boolean).join(' · ');
 
       html += `
         <div class="result-card" id="card-${i}" style="animation-delay: ${i * 0.08}s">
@@ -2235,9 +2249,9 @@
           </div>
           <div class="card-body">
             <div class="card-title">${escapeHtml(item.title || 'Untitled')}</div>
-            ${item.uploader ? `<div class="card-uploader">${escapeHtml(item.uploader)}</div>` : ''}
+            ${metaLine ? `<div class="card-uploader">${escapeHtml(metaLine)}</div>` : ''}
 
-            ${currentFormat === 'video' && item.formats?.length ? `
+            ${!isAudioOnly && currentFormat === 'video' && item.formats?.length ? `
               <div class="quality-pills">
                 ${item.formats.map((f, fi) => `
                   <button class="pill ${fi === 0 ? 'active' : ''}" data-id="${f.id}"
@@ -2264,7 +2278,7 @@
                     <polyline points="7 10 12 15 17 10"/>
                     <line x1="12" y1="15" x2="12" y2="3"/>
                   </svg>
-                  Download ${currentFormat === 'audio' ? 'Audio' : 'Video'}
+                  Download ${downloadKind}
                 `}
               </span>
             </button>

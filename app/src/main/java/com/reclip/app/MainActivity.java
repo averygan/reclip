@@ -210,6 +210,9 @@ public class MainActivity extends AppCompatActivity {
         String writableDir = getFFmpegWritableDir();
         Log.i(TAG, "Configuring FFmpeg: native=" + nativeDir + " writable=" + writableDir);
         engine.callAttr("set_ffmpeg_path", nativeDir, writableDir);
+        engine.callAttr("set_spotify_credentials",
+            BuildConfig.SPOTIFY_CLIENT_ID,
+            BuildConfig.SPOTIFY_CLIENT_SECRET);
     }
 
     /**

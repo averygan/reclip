@@ -25,6 +25,10 @@ _ffmpeg_dir = None          # source dir (nativeLibraryDir)
 _ffmpeg_writable_dir = None # writable copy location (set by Java)
 _ffmpeg_exec_path = None    # final executable path after setup
 _has_libmp3lame = None      # cached check for MP3 encoder
+_spotify_client_id = ''
+_spotify_client_secret = ''
+_spotdl_instance = None
+_spotdl_signature = None
 
 
 def set_ffmpeg_path(native_dir, writable_dir):
@@ -92,6 +96,15 @@ def set_ffmpeg_path(native_dir, writable_dir):
         _ffmpeg_exec_path = dst_ffmpeg
 
 
+def set_spotify_credentials(client_id, client_secret):
+    """Called from Java with build-time Spotify API credentials."""
+    global _spotify_client_id, _spotify_client_secret, _spotdl_instance, _spotdl_signature
+    _spotify_client_id = (client_id or '').strip()
+    _spotify_client_secret = (client_secret or '').strip()
+    _spotdl_instance = None
+    _spotdl_signature = None
+
+
 def _check_libmp3lame():
     """Check if our bundled ffmpeg supports libmp3lame encoder."""
     global _has_libmp3lame
@@ -119,10 +132,140 @@ def _get_ffmpeg_opts():
     return {}
 
 
+def _is_spotify_url(url):
+    return 'open.spotify.com/' in (url or '') or 'spotify.link/' in (url or '')
+
+
+def _spotify_error(message):
+    return json.dumps({
+        'success': False,
+        'source': 'spotify',
+        'error': message,
+    })
+
+
+def _get_spotdl(output_dir=None):
+    """Return a lazily initialized spotDL client configured for mobile use."""
+    global _spotdl_instance, _spotdl_signature
+
+    if not _spotify_client_id or not _spotify_client_secret:
+        raise RuntimeError(
+            'Spotify support is not configured. Set SPOTIFY_CLIENT_ID and '
+            'SPOTIFY_CLIENT_SECRET at build time.'
+        )
+
+    if not _ffmpeg_exec_path or not os.path.exists(_ffmpeg_exec_path):
+        raise RuntimeError('Spotify downloads require the bundled FFmpeg binary.')
+
+    try:
+        from spotdl import Spotdl
+    except Exception as exc:
+        raise RuntimeError(f'spotDL is not available in this build: {exc}') from exc
+
+    output_template = None
+    if output_dir:
+        output_template = os.path.join(output_dir, '{artist} - {title}.{output-ext}')
+
+    output_format = 'mp3' if _check_libmp3lame() else 'm4a'
+    settings = {
+        'audio_providers': ['youtube-music', 'youtube'],
+        'lyrics_providers': [],
+        'threads': 1,
+        'ffmpeg': _ffmpeg_exec_path,
+        'format': output_format,
+        'overwrite': 'force',
+        'simple_tui': True,
+        'print_errors': False,
+        'save_errors': None,
+        'scan_for_songs': False,
+        'm3u': None,
+    }
+    if output_template:
+        settings['output'] = output_template
+
+    signature = (
+        _spotify_client_id,
+        _spotify_client_secret,
+        output_template,
+        output_format,
+        _ffmpeg_exec_path,
+    )
+    if _spotdl_instance is None or _spotdl_signature != signature:
+        cache_dir = os.path.join(_ffmpeg_writable_dir or output_dir or '', 'spotdl-cache')
+        _spotdl_instance = Spotdl(
+            client_id=_spotify_client_id,
+            client_secret=_spotify_client_secret,
+            user_auth=False,
+            headless=True,
+            cache_path=cache_dir or None,
+            downloader_settings=settings,
+        )
+        _spotdl_signature = signature
+    return _spotdl_instance
+
+
+def _song_to_reclip_item(song, index=None):
+    title = getattr(song, 'name', '') or 'Untitled'
+    artist = getattr(song, 'artist', '') or ''
+    artists = getattr(song, 'artists', None) or []
+    uploader = ', '.join(artists) if artists else artist
+    spotify_url = getattr(song, 'url', '') or ''
+    item = {
+        'url': spotify_url,
+        'spotifyUrl': spotify_url,
+        'source': 'spotify',
+        'title': title,
+        'uploader': uploader,
+        'thumbnail': getattr(song, 'cover_url', '') or '',
+        'duration': getattr(song, 'duration', None),
+        'formats': [],
+        'audioOnly': True,
+    }
+    list_name = getattr(song, 'list_name', None)
+    list_position = getattr(song, 'list_position', None)
+    if list_name:
+        item['playlist'] = list_name
+    if list_position:
+        item['playlistPosition'] = list_position
+    elif index is not None:
+        item['playlistPosition'] = index + 1
+    return item
+
+
+def _get_spotify_info(url):
+    """Resolve Spotify track/album/playlist metadata through spotDL."""
+    try:
+        spotdl = _get_spotdl()
+        songs = spotdl.search([url])
+        if not songs:
+            return _spotify_error('No public Spotify tracks found for this link.')
+
+        items = [_song_to_reclip_item(song, index) for index, song in enumerate(songs)]
+        first = items[0]
+        return json.dumps({
+            'success': True,
+            'source': 'spotify',
+            'title': first.get('title', 'Spotify'),
+            'thumbnail': first.get('thumbnail', ''),
+            'duration': first.get('duration'),
+            'uploader': first.get('uploader', ''),
+            'formats': [],
+            'audioOnly': True,
+            'url': first.get('url') or url,
+            'spotifyUrl': url,
+            'items': items,
+        })
+    except Exception as e:
+        return _spotify_error(str(e))
+
+
 # ── Video Info ──
 
 def get_info(url):
     """Fetch video metadata without downloading."""
+    if _is_spotify_url(url):
+        return _get_spotify_info(url)
+
     try:
         ydl_opts = {
             'quiet': True,
@@ -183,6 +326,9 @@ def download_media(url, output_dir, format_choice='video', format_id=None, title
     format_id: specific format ID for quality selection
     Returns JSON string with file path or error.
     """
+    if _is_spotify_url(url):
+        return _download_spotify_media(url, output_dir)
+
     try:
         os.makedirs(output_dir, exist_ok=True)
 
@@ -300,6 +446,64 @@ def download_media(url, output_dir, format_choice='video', format_id=None, title
 
 
 # ── Progress tracking ──
+
+def _download_spotify_media(url, output_dir):
+    """Download a Spotify-matched audio file through spotDL."""
+    global _current_progress
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+        _current_progress = {'percent': 3, 'speed': '', 'eta': '', 'status': 'resolving'}
+
+        spotdl = _get_spotdl(output_dir)
+        songs = spotdl.search([url])
+        if not songs:
+            return json.dumps({
+                'success': False,
+                'source': 'spotify',
+                'error': 'No matching public Spotify track found.',
+            })
+
+        song = songs[0]
+        _current_progress = {'percent': 25, 'speed': '', 'eta': '', 'status': 'matching'}
+        song, path = spotdl.download(song)
+        _current_progress = {'percent': 100, 'speed': '', 'eta': '', 'status': 'processing'}
+
+        filename = str(path) if path else ''
+        if not filename or not os.path.exists(filename):
+            for f in sorted(os.listdir(output_dir),
+                            key=lambda x: os.path.getmtime(os.path.join(output_dir, x)),
+                            reverse=True):
+                candidate = os.path.join(output_dir, f)
+                if os.path.isfile(candidate) and not f.endswith(('.part', '.ytdl')):
+                    filename = candidate
+                    break
+
+        if filename and os.path.exists(filename):
+            return json.dumps({
+                'success': True,
+                'source': 'spotify',
+                'file': filename,
+                'filename': os.path.basename(filename),
+                'size': os.path.getsize(filename),
+                'title': getattr(song, 'name', ''),
+                'uploader': getattr(song, 'artist', ''),
+                'thumbnail': getattr(song, 'cover_url', '') or '',
+            })
+
+        return json.dumps({
+            'success': False,
+            'source': 'spotify',
+            'error': 'Spotify match downloaded, but the output file was not found.',
+            'output_dir': output_dir,
+        })
+    except Exception as e:
+        return json.dumps({
+            'success': False,
+            'source': 'spotify',
+            'error': str(e),
+            'traceback': traceback.format_exc(),
+        })
+
 
 _current_progress = {'percent': 0, 'speed': '', 'eta': '', 'status': 'idle'}
 
