@@ -678,12 +678,6 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
-        /** Expose the native RevenueCat app user id to the managed web paywall. */
-        @JavascriptInterface
-        public String getRevenueCatAppUserId() {
-            return RevenueCatManager.INSTANCE.getAppUserId();
-        }
-
         /** Show the RevenueCat paywall only if the user lacks the entitlement. */
         @JavascriptInterface
         public void showPaywall() {

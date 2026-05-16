@@ -45,7 +45,7 @@ object RevenueCatManager {
     const val LIFETIME_PRODUCT_ID = "lifetime"
 
     private const val NATIVE_SDK_DISABLED =
-        "Native RevenueCat SDK not configured (web paywall flow)"
+        "Native RevenueCat SDK not configured"
 
     @Volatile private var cachedCustomerInfo: CustomerInfo? = null
     @Volatile private var isConfigured = false
@@ -55,10 +55,9 @@ object RevenueCatManager {
     /** Call once from Application.onCreate. */
     fun configure(context: Context) {
         // The native Android Purchases SDK accepts Google Play (`goog_*`) and
-        // older platform-agnostic sandbox (`test_*`) keys. Web Billing keys
-        // (`rcb_*`) are for the JS web paywall (now removed) and crash this
-        // SDK on init. If we don't have a supported key, skip native init so
-        // the bridge methods degrade to safe no-ops instead of throwing.
+        // older platform-agnostic sandbox (`test_*`) keys. If we don't have a
+        // supported key, skip native init so the bridge methods degrade to
+        // safe no-ops instead of throwing.
         val supported = API_KEY.startsWith("goog_") || API_KEY.startsWith("test_")
         if (!supported) {
             Log.w(TAG, "Skipping native RevenueCat init: API_KEY prefix " +
