@@ -64,10 +64,13 @@ public class MainActivity extends AppCompatActivity {
 
         // Register the RevenueCat paywall launcher before STARTED.
         // Results are forwarded to the WebView as window.onPaywallResult(status, err).
-        paywallLauncher = new PaywallLauncher(this, (status, err) -> postToWebView(
-            "if(window.onPaywallResult)window.onPaywallResult('" + status + "'," +
-            (err == null ? "null" : "'" + err.replace("'", "\\'") + "'") + ");"
-        ));
+        paywallLauncher = new PaywallLauncher(this, (status, err) -> {
+            postToWebView(
+                "if(window.onPaywallResult)window.onPaywallResult('" + status + "'," +
+                (err == null ? "null" : "'" + err.replace("'", "\\'") + "'") + ");"
+            );
+            return kotlin.Unit.INSTANCE;
+        });
 
         // Push entitlement updates to the WebView so it can lock/unlock pro features live.
         RevenueCatManager.INSTANCE.addCustomerInfoListener(info -> {
