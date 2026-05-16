@@ -44,12 +44,28 @@ object RevenueCatManager {
     /** Product identifier for the lifetime one-time purchase. */
     const val LIFETIME_PRODUCT_ID = "lifetime"
 
+    private const val NATIVE_SDK_DISABLED =
+        "Native RevenueCat SDK not configured (web paywall flow)"
+
     @Volatile private var cachedCustomerInfo: CustomerInfo? = null
+    @Volatile private var isConfigured = false
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val listeners = mutableListOf<(CustomerInfo) -> Unit>()
 
     /** Call once from Application.onCreate. */
     fun configure(context: Context) {
+        // The native Android Purchases SDK only accepts Google Play keys
+        // (`goog_*`). Web Billing keys (`rcb_*`) are for the JS web paywall in
+        // assets/www/revenuecat-paywall.bundle.js and would crash this SDK on
+        // init. If we don't have a `goog_` key, skip native init entirely so
+        // the web paywall flow keeps working and the JS bridge degrades to
+        // safe no-ops instead of throwing.
+        if (!API_KEY.startsWith("goog_")) {
+            Log.w(TAG, "Skipping native RevenueCat init: API_KEY prefix is " +
+                "'${API_KEY.substringBefore('_')}_', not 'goog_'. The web paywall " +
+                "continues to use its own key in revenuecat-paywall.bundle.js.")
+            return
+        }
         Purchases.logLevel = LogLevel.WARN
         Purchases.configure(
             PurchasesConfiguration.Builder(context.applicationContext, API_KEY).build()
@@ -59,6 +75,7 @@ object RevenueCatManager {
                 cachedCustomerInfo = info
                 listeners.toList().forEach { runCatching { it(info) } }
             }
+        isConfigured = true
         // Warm the cache so isPro() works immediately on first UI query.
         refreshCustomerInfo(null)
     }
@@ -74,10 +91,12 @@ object RevenueCatManager {
         cachedCustomerInfo?.entitlements?.get(ENTITLEMENT_PRO)?.isActive == true
 
     /** Current RevenueCat app user id used by the native SDK instance. */
-    fun getAppUserId(): String = Purchases.sharedInstance.appUserID
+    fun getAppUserId(): String? =
+        if (isConfigured) Purchases.sharedInstance.appUserID else null
 
     /** Pull latest customer info; updates the cache and fires listeners. */
     fun refreshCustomerInfo(onComplete: ((CustomerInfo?) -> Unit)?) {
+        if (!isConfigured) { onComplete?.invoke(null); return }
         Purchases.sharedInstance.getCustomerInfo(object : ReceiveCustomerInfoCallback {
             override fun onReceived(customerInfo: CustomerInfo) {
                 cachedCustomerInfo = customerInfo
@@ -92,6 +111,7 @@ object RevenueCatManager {
 
     /** Fetch the current offering set (products configured in the dashboard). */
     fun getOfferings(onResult: (Offerings?, String?) -> Unit) {
+        if (!isConfigured) { onResult(null, NATIVE_SDK_DISABLED); return }
         scope.launch {
             try {
                 onResult(Purchases.sharedInstance.awaitOfferings(), null)
@@ -104,6 +124,7 @@ object RevenueCatManager {
 
     /** Fetch all packages on the current offering for display in the native paywall. */
     fun getAvailablePackages(onResult: (List<Package>, String?) -> Unit) {
+        if (!isConfigured) { onResult(emptyList(), NATIVE_SDK_DISABLED); return }
         scope.launch {
             try {
                 val packages = Purchases.sharedInstance
@@ -125,6 +146,7 @@ object RevenueCatManager {
         pkg: Package,
         onResult: (Boolean, String?) -> Unit
     ) {
+        if (!isConfigured) { onResult(false, NATIVE_SDK_DISABLED); return }
         scope.launch {
             try {
                 val result = Purchases.sharedInstance.awaitPurchase(
@@ -152,6 +174,7 @@ object RevenueCatManager {
      * @param onResult (success, errorMessage). errorMessage="cancelled" on user cancel.
      */
     fun purchaseLifetime(activity: Activity, onResult: (Boolean, String?) -> Unit) {
+        if (!isConfigured) { onResult(false, NATIVE_SDK_DISABLED); return }
         scope.launch {
             try {
                 val offerings = Purchases.sharedInstance.awaitOfferings()
@@ -184,6 +207,7 @@ object RevenueCatManager {
 
     /** Restore prior purchases (e.g. after reinstall, new device). */
     fun restorePurchases(onResult: (Boolean, String?) -> Unit) {
+        if (!isConfigured) { onResult(false, NATIVE_SDK_DISABLED); return }
         scope.launch {
             try {
                 val info = Purchases.sharedInstance.awaitRestore()
