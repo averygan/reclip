@@ -94,11 +94,20 @@ async function presentManagedPaywall({
     throw new Error("No RevenueCat offering available for the paywall");
   }
 
+  // @revenuecat/purchases-js 0.12 has no presentPaywall(); the entry point is
+  // purchase({rcPackage, htmlTarget}) which renders the billing form for a
+  // specific package directly. Prefer the lifetime slot to match the native
+  // LIFETIME_PRODUCT_ID; fall back to the first available package.
+  const rcPackage = offering.lifetime || offering.availablePackages?.[0];
+  if (!rcPackage) {
+    throw new Error("Offering has no purchasable packages");
+  }
+
   let purchaseResult = null;
   try {
-    purchaseResult = await purchases.presentPaywall({
+    purchaseResult = await purchases.purchase({
+      rcPackage,
       htmlTarget: container,
-      offering,
     });
   } finally {
     if (typeof onAfterClose === "function") {

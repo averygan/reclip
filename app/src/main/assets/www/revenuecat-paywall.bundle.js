@@ -4731,11 +4731,15 @@ var ReclipRevenueCatPaywallModule = (() => {
     if (!offering) {
       throw new Error("No RevenueCat offering available for the paywall");
     }
+    const rcPackage = offering.lifetime || offering.availablePackages?.[0];
+    if (!rcPackage) {
+      throw new Error("Offering has no purchasable packages");
+    }
     let purchaseResult = null;
     try {
-      purchaseResult = await purchases.presentPaywall({
-        htmlTarget: container,
-        offering
+      purchaseResult = await purchases.purchase({
+        rcPackage,
+        htmlTarget: container
       });
     } finally {
       if (typeof onAfterClose === "function") {
