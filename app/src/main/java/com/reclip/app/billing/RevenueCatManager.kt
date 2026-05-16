@@ -7,16 +7,17 @@ import com.revenuecat.purchases.CustomerInfo
 import com.revenuecat.purchases.LogLevel
 import com.revenuecat.purchases.Offerings
 import com.revenuecat.purchases.Package
+import com.revenuecat.purchases.PurchaseParams
 import com.revenuecat.purchases.Purchases
 import com.revenuecat.purchases.PurchasesConfiguration
+import com.revenuecat.purchases.PurchasesError
 import com.revenuecat.purchases.PurchasesException
 import com.revenuecat.purchases.PurchasesTransactionException
-import com.revenuecat.purchases.awaitCustomerInfo
 import com.revenuecat.purchases.awaitOfferings
 import com.revenuecat.purchases.awaitPurchase
 import com.revenuecat.purchases.awaitRestore
+import com.revenuecat.purchases.interfaces.ReceiveCustomerInfoCallback
 import com.revenuecat.purchases.interfaces.UpdatedCustomerInfoListener
-import com.revenuecat.purchases.models.PurchaseParams
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -74,16 +75,16 @@ object RevenueCatManager {
 
     /** Pull latest customer info; updates the cache and fires listeners. */
     fun refreshCustomerInfo(onComplete: ((CustomerInfo?) -> Unit)?) {
-        scope.launch {
-            try {
-                val info = Purchases.sharedInstance.awaitCustomerInfo()
-                cachedCustomerInfo = info
-                onComplete?.invoke(info)
-            } catch (e: PurchasesException) {
-                Log.e(TAG, "getCustomerInfo failed: ${e.error}", e)
+        Purchases.sharedInstance.getCustomerInfo(object : ReceiveCustomerInfoCallback {
+            override fun onReceived(customerInfo: CustomerInfo) {
+                cachedCustomerInfo = customerInfo
+                onComplete?.invoke(customerInfo)
+            }
+            override fun onError(error: PurchasesError) {
+                Log.e(TAG, "getCustomerInfo failed: $error")
                 onComplete?.invoke(null)
             }
-        }
+        })
     }
 
     /** Fetch the current offering set (products configured in the dashboard). */

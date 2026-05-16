@@ -102,7 +102,10 @@ jobs:
           chmod +x gradlew
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee build-debug.log
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
@@ -112,7 +115,10 @@ jobs:
           retention-days: 30
 
       - name: Build Release APK (unsigned)
-        run: ./gradlew assembleRelease --no-daemon --stacktrace
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee build-release.log
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
@@ -120,3 +126,14 @@ jobs:
           name: ReClip-release-unsigned
           path: app/build/outputs/apk/release/app-release-unsigned.apk
           retention-days: 30
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            build-debug.log
+            build-release.log
+          if-no-files-found: ignore
+          retention-days: 14
