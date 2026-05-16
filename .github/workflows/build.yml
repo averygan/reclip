@@ -2,9 +2,9 @@ name: Build ReClip APK
 
 on:
   push:
-    branches: [ main, android ]
+    branches: [ main, android, Codex ]
   pull_request:
-    branches: [ main, android ]
+    branches: [ main, android, Codex ]
   workflow_dispatch:
 
 jobs:
