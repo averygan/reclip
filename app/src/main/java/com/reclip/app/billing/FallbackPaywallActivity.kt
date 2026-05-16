@@ -30,7 +30,9 @@ class FallbackPaywallActivity : AppCompatActivity() {
         // Populate the price line from the current lifetime package, if any.
         RevenueCatManager.getOfferings { offerings, _ ->
             val pkg = offerings?.current?.lifetime
-            priceLabel.text = pkg?.product?.price?.formatted ?: "Unlock ReClip Pro"
+            val price = pkg?.product?.price?.formatted ?: "$69.99"
+            priceLabel.text = "$price lifetime"
+            continueBtn.text = "Unlock for $price"
         }
 
         continueBtn.setOnClickListener {
