@@ -18,7 +18,6 @@ import android.os.Looper;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.webkit.JavascriptInterface;
-import android.webkit.ConsoleMessage;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -221,17 +220,7 @@ public class MainActivity extends AppCompatActivity {
         settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
 
         webView.setWebViewClient(new WebViewClient());
-        webView.setWebChromeClient(new WebChromeClient() {
-            @Override
-            public boolean onConsoleMessage(ConsoleMessage consoleMessage) {
-                Log.d(
-                    TAG,
-                    "WebViewConsole: " + consoleMessage.message() +
-                    " @" + consoleMessage.sourceId() + ":" + consoleMessage.lineNumber()
-                );
-                return true;
-            }
-        });
+        webView.setWebChromeClient(new WebChromeClient());
         webView.setBackgroundColor(0xFF0F0F23);
 
         webView.addJavascriptInterface(new ReClipBridge(), "ReClip");
@@ -294,7 +283,6 @@ public class MainActivity extends AppCompatActivity {
     private void configureFFmpeg(PyObject engine) {
         String nativeDir = getFFmpegNativeDir();
         String writableDir = getFFmpegWritableDir();
-        Log.i(TAG, "Configuring FFmpeg: native=" + nativeDir + " writable=" + writableDir);
         engine.callAttr("set_ffmpeg_path", nativeDir, writableDir);
         engine.callAttr("set_spotify_credentials",
             BuildConfig.SPOTIFY_CLIENT_ID,
@@ -451,7 +439,6 @@ public class MainActivity extends AppCompatActivity {
                     configureFFmpeg(engine);
                     PyObject result = engine.callAttr("get_info", url);
                     String json = result.toString();
-                    Log.i(TAG, "fetchInfo result: " + json);
                     postToWebView("window._nativeCallback('" + callbackId + "', " + json + ");");
                 } catch (Exception e) {
                     Log.e(TAG, "fetchInfo error", e);
@@ -515,8 +502,6 @@ public class MainActivity extends AppCompatActivity {
                         formatId.isEmpty() ? null : formatId,
                         title);
                     String json = result.toString();
-
-                    Log.i(TAG, "Download result: " + json);
 
                     // Parse result and save to public Downloads
                     try {

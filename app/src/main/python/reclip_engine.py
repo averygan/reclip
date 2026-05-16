@@ -151,12 +151,9 @@ def _spotify_error(message):
 
 def _require_spotify_credentials():
     if not _spotify_client_id or not _spotify_client_secret:
-        id_len = len(_spotify_client_id or '')
-        secret_len = len(_spotify_client_secret or '')
         raise RuntimeError(
             'Spotify support is not configured. Set SPOTIFY_CLIENT_ID and '
-            'SPOTIFY_CLIENT_SECRET at build time. '
-            f'(debug: id_len={id_len}, secret_len={secret_len})'
+            'SPOTIFY_CLIENT_SECRET at build time.'
         )
 
 
@@ -723,8 +720,6 @@ def _download_spotify_media(url, output_dir):
             'source': 'spotify',
             'error': 'Spotify match downloaded, but the output file was not found.',
             'output_dir': output_dir,
-            'expected_ext': expected_ext,
-            'files_in_dir': sorted(os.listdir(output_dir)) if os.path.isdir(output_dir) else [],
         })
     except Exception as e:
         return json.dumps({
