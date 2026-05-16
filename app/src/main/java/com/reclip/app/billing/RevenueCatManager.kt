@@ -36,7 +36,7 @@ object RevenueCatManager {
     private const val TAG = "RevenueCatManager"
 
     // Sandbox / test key — replace via BuildConfig or remote config before shipping.
-    private const val API_KEY = "test_RqnYeLnlWXtZFVPLyXeCZInFYVm"
+    private const val API_KEY = "rcb_sb_RxDiRUgSVZVzSHkACLkcJHwVi"
 
     /** Entitlement identifier (lowercase snake_case, matches the RC dashboard). */
     const val ENTITLEMENT_PRO = "reclip_pro"
