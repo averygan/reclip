@@ -4686,10 +4686,7 @@ var ReclipRevenueCatPaywallModule = (() => {
   async function getPurchases() {
     if (!sharedPurchasesPromise) {
       sharedPurchasesPromise = getOrCreateCustomerId().then(
-        (appUserId) => on.configure({
-          apiKey: API_KEY,
-          appUserId
-        })
+        (appUserId) => on.configure(API_KEY, appUserId)
       );
     }
     return sharedPurchasesPromise;

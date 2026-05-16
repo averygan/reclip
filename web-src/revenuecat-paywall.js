@@ -37,11 +37,11 @@ async function getOrCreateCustomerId() {
 
 async function getPurchases() {
   if (!sharedPurchasesPromise) {
+    // @revenuecat/purchases-js Purchases.configure takes positional args
+    // (apiKey, appUserId, httpConfig?) — passing an options object causes
+    // the apiKey validator to receive "[object Object]" and reject the key.
     sharedPurchasesPromise = getOrCreateCustomerId().then((appUserId) =>
-      Purchases.configure({
-        apiKey: API_KEY,
-        appUserId,
-      })
+      Purchases.configure(API_KEY, appUserId)
     );
   }
   return sharedPurchasesPromise;
