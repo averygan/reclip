@@ -31,6 +31,7 @@ import androidx.core.content.FileProvider;
 
 import com.chaquo.python.PyObject;
 import com.chaquo.python.Python;
+import com.reclip.app.billing.PaywallLauncher;
 import com.reclip.app.billing.RevenueCatManager;
 
 import java.io.File;
@@ -45,6 +46,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "ReClip";
 
     private WebView webView;
+    private PaywallLauncher paywallLauncher;
     private final ExecutorService executor = Executors.newFixedThreadPool(3);
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private String pendingSharedUrl = null;
@@ -57,6 +59,20 @@ public class MainActivity extends AppCompatActivity {
         if (getResources().getBoolean(R.bool.lock_portrait)) {
             setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         }
+
+        // Register the RC paywall launcher BEFORE the activity reaches STARTED
+        // (ActivityResult launchers must register during INITIALIZED/CREATED).
+        // Results are forwarded to the WebView as window.onPaywallResult(status, err).
+        paywallLauncher = new PaywallLauncher(this, (status, err) -> {
+            String errJson = err == null
+                ? "null"
+                : "'" + err.replace("'", "\\'") + "'";
+            postToWebView(
+                "if(window.onPaywallResult)window.onPaywallResult('" + status
+                + "'," + errJson + ");"
+            );
+            return kotlin.Unit.INSTANCE;
+        });
 
         setContentView(R.layout.activity_main);
 
@@ -668,10 +684,22 @@ public class MainActivity extends AppCompatActivity {
             return RevenueCatManager.INSTANCE.getAppUserId();
         }
 
+        /** Show the RevenueCat paywall only if the user lacks the entitlement. */
+        @JavascriptInterface
+        public void showPaywall() {
+            mainHandler.post(() -> paywallLauncher.showIfNeeded());
+        }
+
+        /** Always show the paywall (e.g. from an explicit "Go Pro" tap). */
+        @JavascriptInterface
+        public void showPaywallAlways() {
+            mainHandler.post(() -> paywallLauncher.showAlways());
+        }
+
         /** Show the RevenueCat Customer Center (manage / restore / support). */
         @JavascriptInterface
         public void showCustomerCenter() {
-            mainHandler.post(() -> showRevenueCatCustomerCenter());
+            mainHandler.post(() -> paywallLauncher.showCustomerCenter());
         }
 
         /** Restore prior purchases. Callback: {"isPro":bool,"error":string|null}. */
@@ -803,15 +831,4 @@ public class MainActivity extends AppCompatActivity {
         mainHandler.post(() -> webView.evaluateJavascript(js, null));
     }
 
-    private void showRevenueCatCustomerCenter() {
-        try {
-            Class<?> klass = Class.forName(
-                "com.revenuecat.purchases.ui.revenuecatui.customercenter.CustomerCenterActivity"
-            );
-            startActivity(new Intent(this, klass));
-        } catch (Throwable t) {
-            Log.e(TAG, "Customer Center activity not found", t);
-            Toast.makeText(this, "Customer center unavailable", Toast.LENGTH_SHORT).show();
-        }
-    }
 }
