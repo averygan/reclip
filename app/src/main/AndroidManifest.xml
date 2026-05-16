@@ -27,7 +27,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:configChanges="orientation|screenSize|keyboardHidden"
-            android:launchMode="singleTask">
+            android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -44,6 +44,20 @@
             android:name=".DownloadService"
             android:foregroundServiceType="dataSync"
             android:exported="false" />
+
+        <!-- Prevent WorkManager from auto-initializing through androidx.startup.
+             RevenueCat recommends this to avoid an init-order race when the app
+             configures WorkManager (or the SDK does) before startup completes. -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
 
         <provider
             android:name="androidx.core.content.FileProvider"
