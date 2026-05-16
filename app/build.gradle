@@ -29,7 +29,6 @@ android {
             version "3.11"
             pip {
                 install "yt-dlp"
-                install "git+https://github.com/waynekosterjr-hub/spotify-downloader.git@28d1e3efa2dd9354fe3273708d39f97512fd7790"
             }
         }
 
