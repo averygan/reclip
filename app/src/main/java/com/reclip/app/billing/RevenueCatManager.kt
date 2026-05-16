@@ -36,7 +36,7 @@ object RevenueCatManager {
     private const val TAG = "RevenueCatManager"
 
     // Sandbox / test key — replace via BuildConfig or remote config before shipping.
-    private const val API_KEY = "rcb_sb_RxDiRUgSVZVzSHkACLkcJHwVi"
+    private const val API_KEY = "test_RqnYeLnlWXtZFVPLyXeCZInFYVm"
 
     /** Entitlement identifier (lowercase snake_case, matches the RC dashboard). */
     const val ENTITLEMENT_PRO = "reclip_pro"
@@ -66,7 +66,7 @@ object RevenueCatManager {
                 "SDK. Use a goog_ or test_ key from the RC dashboard.")
             return
         }
-        Purchases.logLevel = LogLevel.WARN
+        Purchases.logLevel = LogLevel.DEBUG  // Remove (or set to WARN) in production
         Purchases.configure(
             PurchasesConfiguration.Builder(context.applicationContext, API_KEY).build()
         )
