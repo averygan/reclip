@@ -1,72 +1,42 @@
 package com.reclip.app.billing
 
+import android.app.Activity
 import android.content.Intent
 import android.util.Log
 import androidx.activity.ComponentActivity
-import com.revenuecat.purchases.ui.revenuecatui.activity.PaywallActivityLauncher
-import com.revenuecat.purchases.ui.revenuecatui.activity.PaywallResult
-import com.revenuecat.purchases.ui.revenuecatui.activity.PaywallResultHandler
+import androidx.activity.result.contract.ActivityResultContracts
 
 /**
- * Owns the RevenueCat [PaywallActivityLauncher] and Customer Center launch
- * for a given [ComponentActivity]. Register this in onCreate (ActivityResult
- * launchers must be registered before STARTED state).
- *
- * Result callbacks fire on the main thread and are forwarded to the supplied
- * [onPaywallResult] callback so MainActivity can post them to the WebView.
- *
- * NOTE: The exact class names below come from purchases-ui ~10.x. If you bump
- * the RC SDK, double-check that PaywallActivityLauncher / PaywallResultHandler
- * still live at this package. The Customer Center launch path is intentionally
- * minimal — verify the activity name in your SDK version (10.6.0 ships it as
- * an Activity that can be started with a plain Intent; if RC ships a typed
- * launcher in your version, swap to that for typed results).
+ * Owns the paywall and Customer Center launch paths for a given
+ * [ComponentActivity]. Result callbacks fire on the main thread and are
+ * forwarded to MainActivity so the WebView can be notified.
  */
 class PaywallLauncher(
     private val activity: ComponentActivity,
     private val onPaywallResult: (status: String, errorMessage: String?) -> Unit
 ) {
 
-    private val launcher: PaywallActivityLauncher =
-        PaywallActivityLauncher(activity, object : PaywallResultHandler {
-            override fun onActivityResult(result: PaywallResult) {
-                when (result) {
-                    is PaywallResult.Purchased -> onPaywallResult("purchased", null)
-                    is PaywallResult.Restored  -> onPaywallResult("restored", null)
-                    is PaywallResult.Cancelled -> onPaywallResult("cancelled", null)
-                    is PaywallResult.Error     -> onPaywallResult("error", result.error.message)
-                }
-            }
-        })
-
-    /**
-     * Show the paywall only if the user is not already entitled.
-     * If the RC offerings can't be fetched (no network, dashboard not
-     * configured), fall back to [FallbackPaywallActivity] so the user
-     * still sees something coherent.
-     */
-    fun showIfNeeded() {
-        if (RevenueCatManager.isPro()) return
-        RevenueCatManager.getOfferings { offerings, _ ->
-            if (offerings?.current != null) {
-                launcher.launchIfNeeded(
-                    requiredEntitlementIdentifier = RevenueCatManager.ENTITLEMENT_PRO
-                )
-            } else {
-                activity.startActivity(Intent(activity, FallbackPaywallActivity::class.java))
-            }
+    private val launcher = activity.registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val status = result.data?.getStringExtra(ReclipPaywallActivity.EXTRA_PAYWALL_STATUS)
+                ?: ReclipPaywallActivity.STATUS_PURCHASED
+            onPaywallResult(status, null)
+        } else {
+            onPaywallResult("cancelled", null)
         }
     }
 
-    /** Always show the paywall (e.g. from a "Go Pro" button). */
+    /** Show the custom ReClip paywall only if the user is not already entitled. */
+    fun showIfNeeded() {
+        if (RevenueCatManager.isPro()) return
+        showAlways()
+    }
+
+    /** Always show the custom ReClip paywall, for example from a Go Pro button. */
     fun showAlways() {
-        RevenueCatManager.getOfferings { offerings, _ ->
-            if (offerings?.current != null) {
-                launcher.launch()
-            } else {
-                activity.startActivity(Intent(activity, FallbackPaywallActivity::class.java))
-            }
-        }
+        launcher.launch(Intent(activity, ReclipPaywallActivity::class.java))
     }
 
     /**

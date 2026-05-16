@@ -99,6 +99,50 @@ object RevenueCatManager {
         }
     }
 
+    /** Fetch all packages on the current offering for display in the native paywall. */
+    fun getAvailablePackages(onResult: (List<Package>, String?) -> Unit) {
+        scope.launch {
+            try {
+                val packages = Purchases.sharedInstance
+                    .awaitOfferings()
+                    .current
+                    ?.availablePackages
+                    .orEmpty()
+                onResult(packages, null)
+            } catch (e: PurchasesException) {
+                Log.e(TAG, "getAvailablePackages failed: ${e.error}", e)
+                onResult(emptyList(), e.error.message)
+            }
+        }
+    }
+
+    /** Purchase a package selected from the current offering. */
+    fun purchasePackage(
+        activity: Activity,
+        pkg: Package,
+        onResult: (Boolean, String?) -> Unit
+    ) {
+        scope.launch {
+            try {
+                val result = Purchases.sharedInstance.awaitPurchase(
+                    PurchaseParams.Builder(activity, pkg).build()
+                )
+                cachedCustomerInfo = result.customerInfo
+                onResult(isPro(), null)
+            } catch (e: PurchasesTransactionException) {
+                if (e.userCancelled) {
+                    onResult(false, "cancelled")
+                } else {
+                    Log.e(TAG, "purchasePackage failed: ${e.error}", e)
+                    onResult(false, e.error.message)
+                }
+            } catch (e: PurchasesException) {
+                Log.e(TAG, "purchasePackage failed: ${e.error}", e)
+                onResult(false, e.error.message)
+            }
+        }
+    }
+
     /**
      * Kick off a purchase for the lifetime package. Resolves the package off
      * the current offering's `lifetime` slot, falling back to a product-id match.

@@ -6,22 +6,16 @@
 
     <ImageView
         android:layout_width="match_parent"
-        android:layout_height="190dp"
-        android:layout_gravity="bottom"
-        android:alpha="0.8"
+        android:layout_height="match_parent"
+        android:alpha="0.78"
         android:contentDescription="@null"
-        android:scaleType="fitXY"
-        android:src="@drawable/paywall_equalizer" />
+        android:scaleType="centerCrop"
+        android:src="@drawable/paywall_neon_background" />
 
-    <ImageView
-        android:layout_width="230dp"
-        android:layout_height="230dp"
-        android:layout_gravity="top|end"
-        android:layout_marginTop="52dp"
-        android:layout_marginEnd="-34dp"
-        android:alpha="0.9"
-        android:contentDescription="@null"
-        android:src="@drawable/paywall_headphones" />
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/paywall_scrim" />
 
     <ScrollView
         android:layout_width="match_parent"
@@ -39,7 +33,7 @@
             android:paddingBottom="24dp">
 
             <Button
-                android:id="@+id/fallback_paywall_close"
+                android:id="@+id/reclip_paywall_close"
                 android:layout_width="44dp"
                 android:layout_height="44dp"
                 android:layout_gravity="end"
@@ -50,40 +44,64 @@
                 android:padding="0dp"
                 android:text="x"
                 android:textAllCaps="false"
-                android:textColor="#CCFFFFFF"
+                android:textColor="#DFFFFFFF"
                 android:textSize="22sp" />
 
             <FrameLayout
-                android:layout_width="112dp"
-                android:layout_height="112dp"
+                android:layout_width="128dp"
+                android:layout_height="128dp"
+                android:layout_gravity="center_horizontal"
                 android:layout_marginTop="8dp"
                 android:background="@drawable/paywall_logo_ring"
-                android:padding="18dp">
+                android:padding="8dp">
 
                 <ImageView
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:contentDescription="@string/app_name"
-                    android:src="@mipmap/ic_launcher_foreground" />
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/paywall_logo" />
             </FrameLayout>
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
+                android:fontFamily="sans-serif"
+                android:gravity="center"
                 android:includeFontPadding="false"
-                android:text="ReClip Pro"
-                android:textColor="#FFFFFFFF"
+                android:letterSpacing="0.08"
+                android:shadowColor="#D900E7FF"
+                android:shadowDx="0"
+                android:shadowDy="0"
+                android:shadowRadius="12"
+                android:text="RECLIP"
+                android:textColor="#FF8EFBFF"
                 android:textSize="42sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="6dp"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:shadowColor="#D9FF2BC2"
+                android:shadowDx="0"
+                android:shadowDy="0"
+                android:shadowRadius="12"
+                android:text="Unlock Premium"
+                android:textColor="#FFFF7BE2"
+                android:textSize="30sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center"
                 android:lineSpacingExtra="4dp"
-                android:text="Download, convert, and keep your media toolkit unlocked for life."
-                android:textColor="#C8FFFFFF"
+                android:text="Download, convert, and keep your media toolkit glowing."
+                android:textColor="#D8FFFFFF"
                 android:textSize="16sp" />
 
             <LinearLayout
@@ -100,7 +118,7 @@
                     android:paddingTop="12dp"
                     android:paddingEnd="16dp"
                     android:paddingBottom="12dp"
-                    android:text="- Spotify link support"
+                    android:text="Spotify link support"
                     android:textColor="#FFFFFFFF"
                     android:textSize="15sp" />
 
@@ -113,7 +131,7 @@
                     android:paddingTop="12dp"
                     android:paddingEnd="16dp"
                     android:paddingBottom="12dp"
-                    android:text="- MP3 audio extraction"
+                    android:text="MP3 audio extraction"
                     android:textColor="#FFFFFFFF"
                     android:textSize="15sp" />
 
@@ -126,58 +144,51 @@
                     android:paddingTop="12dp"
                     android:paddingEnd="16dp"
                     android:paddingBottom="12dp"
-                    android:text="- Highest-quality downloads"
+                    android:text="Highest-quality downloads"
                     android:textColor="#FFFFFFFF"
                     android:textSize="15sp" />
             </LinearLayout>
 
-            <Space
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
-
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="28dp"
+                android:layout_marginTop="24dp"
                 android:background="@drawable/paywall_panel"
                 android:orientation="vertical"
                 android:padding="18dp">
 
                 <TextView
-                    android:id="@+id/fallback_paywall_price"
+                    android:id="@+id/reclip_paywall_status"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:gravity="center"
-                    android:text="$69.99 lifetime"
-                    android:textColor="#FFFFFFFF"
-                    android:textSize="28sp"
-                    android:textStyle="bold" />
+                    android:text="Loading premium options..."
+                    android:textColor="#D8FFFFFF"
+                    android:textSize="15sp" />
 
-                <TextView
+                <LinearLayout
+                    android:id="@+id/reclip_paywall_packages"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:gravity="center"
-                    android:text="One-time purchase. No subscription."
-                    android:textColor="#B8FFFFFF"
-                    android:textSize="13sp" />
+                    android:layout_marginTop="12dp"
+                    android:orientation="vertical" />
 
                 <Button
-                    android:id="@+id/fallback_paywall_continue"
+                    android:id="@+id/reclip_paywall_continue"
                     android:layout_width="match_parent"
-                    android:layout_height="56dp"
+                    android:layout_height="58dp"
                     android:layout_marginTop="16dp"
                     android:background="@drawable/paywall_primary_button"
                     android:elevation="0dp"
-                    android:text="Unlock for $69.99"
+                    android:enabled="false"
+                    android:text="Unlock Premium"
                     android:textAllCaps="false"
                     android:textColor="#FFFFFFFF"
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
                 <Button
-                    android:id="@+id/fallback_paywall_restore"
+                    android:id="@+id/reclip_paywall_restore"
                     android:layout_width="match_parent"
                     android:layout_height="50dp"
                     android:layout_marginTop="10dp"

@@ -41,7 +41,7 @@
         </activity>
 
         <activity
-            android:name=".billing.FallbackPaywallActivity"
+            android:name=".billing.ReclipPaywallActivity"
             android:exported="false"
             android:theme="@style/Theme.ReClip" />
 
