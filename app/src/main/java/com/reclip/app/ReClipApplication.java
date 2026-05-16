@@ -8,6 +8,7 @@ import android.os.Build;
 import android.util.Log;
 import com.chaquo.python.Python;
 import com.chaquo.python.android.AndroidPlatform;
+import com.reclip.app.billing.RevenueCatManager;
 import java.io.File;
 
 public class ReClipApplication extends Application {
@@ -24,6 +25,9 @@ public class ReClipApplication extends Application {
         if (!Python.isStarted()) {
             Python.start(new AndroidPlatform(this));
         }
+
+        // Configure RevenueCat once, on process start.
+        RevenueCatManager.INSTANCE.configure(this);
 
         // Locate bundled ffmpeg binary.
         // When native libs are bundled in jniLibs/ as libffmpeg.so / libffprobe.so,

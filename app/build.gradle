@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.application'
     id 'com.chaquo.python'
+    id 'org.jetbrains.kotlin.android'
 }
 
 android {
@@ -56,8 +57,19 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
     buildFeatures {
         viewBinding true
+    }
+
+    // kotlinx-coroutines bundles duplicate META-INF licenses; exclude them.
+    packagingOptions {
+        resources {
+            excludes += ['/META-INF/{AL2.0,LGPL2.1}']
+        }
     }
 }
 
@@ -67,4 +79,11 @@ dependencies {
     implementation 'androidx.webkit:webkit:1.10.0'
     implementation 'androidx.core:core-ktx:1.12.0'
     implementation 'com.google.code.gson:gson:2.10.1'
+
+    // Kotlin coroutines for RevenueCat await* extensions
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+
+    // RevenueCat — purchases + paywall/customer-center UI
+    implementation 'com.revenuecat.purchases:purchases:10.6.0'
+    implementation 'com.revenuecat.purchases:purchases-ui:10.6.0'
 }
