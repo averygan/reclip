@@ -221,6 +221,40 @@
     text-transform: uppercase;
   }
 
+  .pro-pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 12px;
+    border-radius: 100px;
+    background: linear-gradient(135deg, var(--coral), var(--violet));
+    color: white;
+    border: none;
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.3s var(--ease);
+    box-shadow: 0 0 16px var(--coral-glow);
+    flex-shrink: 0;
+  }
+  .pro-pill:active { transform: scale(0.94); }
+  .pro-pill.entitled {
+    background: var(--surface);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border);
+    color: var(--text-soft);
+    box-shadow: none;
+    padding: 7px 10px;
+  }
+  .pro-pill.entitled::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--coral);
+    box-shadow: 0 0 8px var(--coral-glow);
+  }
+
   .status-pill {
     display: flex; align-items: center; gap: 6px;
     padding: 7px 10px;
@@ -1468,6 +1502,9 @@
       </div>
     </div>
     <div class="header-actions">
+      <button class="pro-pill" id="proPill" onclick="onProPillClick()" style="display:none" aria-label="ReClip Pro">
+        <span id="proPillLabel">Pro</span>
+      </button>
       <button class="header-btn" id="downloadsBtn" onclick="openDownloads()" aria-label="View downloads">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -1671,6 +1708,12 @@
   // ─── Format toggle ───
   function setFormat(f) {
     if (currentFormat === f) return;
+    // Gate Audio behind ReClip Pro
+    if (f === 'audio' && !isProUser && isNative()) {
+      showToast('Audio extraction requires ReClip Pro');
+      try { ReClip.showPaywall(); } catch (e) {}
+      return;
+    }
     currentFormat = f;
     document.getElementById('fmtVideo').classList.toggle('active', f === 'video');
     document.getElementById('fmtAudio').classList.toggle('active', f === 'audio');
@@ -2296,6 +2339,46 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => t.classList.remove('visible'), 3000);
   }
+
+  // ─── ReClip Pro state ───
+  let isProUser = false;
+
+  function setProUI(pro) {
+    isProUser = pro;
+    const pill = document.getElementById('proPill');
+    if (!pill) return;
+    pill.style.display = '';
+    pill.classList.toggle('entitled', pro);
+    document.getElementById('proPillLabel').textContent = pro ? 'Pro' : 'Go Pro';
+  }
+
+  function onProPillClick() {
+    if (!isNative()) { showToast('Paywall unavailable in demo'); return; }
+    try {
+      if (isProUser) ReClip.showCustomerCenter();
+      else           ReClip.showPaywall();
+    } catch (e) { showToast('Paywall unavailable', true); }
+  }
+
+  // Called by MainActivity when the paywall activity returns.
+  window.onPaywallResult = function(status, err) {
+    if (status === 'purchased')      showToast('Welcome to ReClip Pro');
+    else if (status === 'restored')  showToast('Purchases restored');
+    else if (status === 'error')     showToast(err || 'Paywall error', true);
+    // 'cancelled' — silent
+  };
+
+  // Pushed by the RevenueCat updatedCustomerInfoListener whenever
+  // entitlement changes (purchase, expiry, restore from another device).
+  window.onProStatusChanged = function(pro) { setProUI(pro); };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (isNative() && typeof ReClip.isProUser === 'function') {
+      try { setProUI(ReClip.isProUser()); } catch (e) { setProUI(false); }
+    } else {
+      setProUI(false);  // demo mode
+    }
+  });
 
   // ─── Init ───
   document.addEventListener('DOMContentLoaded', () => {

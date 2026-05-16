@@ -39,14 +39,34 @@ class PaywallLauncher(
             }
         })
 
-    /** Show the paywall only if the user is not already entitled. */
+    /**
+     * Show the paywall only if the user is not already entitled.
+     * If the RC offerings can't be fetched (no network, dashboard not
+     * configured), fall back to [FallbackPaywallActivity] so the user
+     * still sees something coherent.
+     */
     fun showIfNeeded() {
-        launcher.launchIfNeeded(requiredEntitlementIdentifier = RevenueCatManager.ENTITLEMENT_PRO)
+        if (RevenueCatManager.isPro()) return
+        RevenueCatManager.getOfferings { offerings, _ ->
+            if (offerings?.current != null) {
+                launcher.launchIfNeeded(
+                    requiredEntitlementIdentifier = RevenueCatManager.ENTITLEMENT_PRO
+                )
+            } else {
+                activity.startActivity(Intent(activity, FallbackPaywallActivity::class.java))
+            }
+        }
     }
 
     /** Always show the paywall (e.g. from a "Go Pro" button). */
     fun showAlways() {
-        launcher.launch()
+        RevenueCatManager.getOfferings { offerings, _ ->
+            if (offerings?.current != null) {
+                launcher.launch()
+            } else {
+                activity.startActivity(Intent(activity, FallbackPaywallActivity::class.java))
+            }
+        }
     }
 
     /**

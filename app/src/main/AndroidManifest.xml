@@ -41,6 +41,11 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".billing.FallbackPaywallActivity"
+            android:exported="false"
+            android:theme="@style/Theme.ReClip" />
+
         <service
             android:name=".DownloadService"
             android:foregroundServiceType="dataSync"
