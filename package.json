@@ -2,7 +2,7 @@
   "name": "reclip-web-paywall",
   "private": true,
   "scripts": {
-    "build:paywall": "node node_modules/esbuild/bin/esbuild web-src/revenuecat-paywall.js --bundle --format=iife --platform=browser --target=es2020 --global-name=ReclipRevenueCatPaywallModule --outfile=app/src/main/assets/www/revenuecat-paywall.bundle.js"
+    "build:paywall": "esbuild web-src/revenuecat-paywall.js --bundle --format=iife --platform=browser --target=es2020 --global-name=ReclipRevenueCatPaywallModule --outfile=app/src/main/assets/www/revenuecat-paywall.bundle.js"
   },
   "dependencies": {
     "@revenuecat/purchases-js": "^0.12.1"
