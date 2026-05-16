@@ -1292,51 +1292,6 @@
   }
   .toast.error .toast-dot { background: var(--coral); box-shadow: 0 0 8px var(--coral-glow); }
 
-  .paywall-modal {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px 12px;
-    background: rgba(5, 5, 17, 0.82);
-    backdrop-filter: blur(12px);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.25s var(--ease);
-    z-index: 50;
-  }
-  .paywall-modal.visible {
-    opacity: 1;
-    pointer-events: auto;
-  }
-  .paywall-frame {
-    width: min(968px, 100%);
-    max-height: min(92dvh, 920px);
-    overflow: auto;
-    border-radius: 28px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: linear-gradient(180deg, rgba(10, 10, 31, 0.96), rgba(5, 5, 17, 0.98));
-    box-shadow: 0 32px 80px rgba(0, 0, 0, 0.45);
-  }
-  #paywall-container {
-    width: 100%;
-    min-height: min(560px, 82dvh);
-    max-width: 968px;
-    margin: 0 auto;
-  }
-  .paywall-loading {
-    min-height: min(560px, 82dvh);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 32px;
-    color: var(--text-soft);
-    font-size: 14px;
-    letter-spacing: 0.2px;
-    text-align: center;
-  }
-
   /* ─── Bottom safe area ─── */
 
   /* ─── Footer credit ─── */
@@ -1687,19 +1642,12 @@
   <div class="sheet-list" id="downloadsList"></div>
 </div>
 
-<div class="paywall-modal" id="paywallModal" aria-hidden="true">
-  <div class="paywall-frame">
-    <div id="paywall-container"></div>
-  </div>
-</div>
-
 <!-- Toast -->
 <div class="toast" id="toast">
   <span class="toast-dot"></span>
   <span id="toastText"></span>
 </div>
 
-<script src="revenuecat-paywall.bundle.js"></script>
 <script>
   // ─── State ───
   let currentFormat = 'video';
@@ -1758,22 +1706,14 @@
   }
 
   // ─── Format toggle ───
-  async function setFormat(f) {
+  function setFormat(f) {
     if (currentFormat === f) return;
     // Gate Audio behind ReClip Pro
-    if (f === 'audio' && !isProUser) {
+    if (f === 'audio' && !isProUser && isNative()) {
       showToast('Audio extraction requires ReClip Pro');
-      const paywall = await presentManagedPaywall();
-      if (!paywall.unlocked) return;
-      setProUI(true);
-      if (isNative()) {
-        try {
-          const refreshed = await nativeCall('refreshCustomerInfo', []);
-          setProUI(!!refreshed?.isPro);
-        } catch (e) {}
-      }
-    }
-    if (f === 'audio' && !isProUser) {
+      try { ReClip.showPaywall(); } catch (e) {}
+      // window.onProStatusChanged unlocks Audio automatically when the
+      // purchase completes; the user just taps Audio again.
       return;
     }
     currentFormat = f;
@@ -2417,9 +2357,9 @@
   }
 
   // ─── ReClip Pro state ───
+  // Entitlement/offering ids live on the native side (RevenueCatManager.ENTITLEMENT_PRO
+  // and the RC dashboard offering); JS only tracks the current pro flag.
   let isProUser = false;
-  const PRO_ENTITLEMENT_ID = 'reclip_pro';
-  const PAYWALL_OFFERING_ID = 'ReClip Pro';
 
   function setProUI(pro) {
     isProUser = pro;
@@ -2430,73 +2370,21 @@
     document.getElementById('proPillLabel').textContent = pro ? 'Pro' : 'Go Pro';
   }
 
-  function openPaywallModal() {
-    const modal = document.getElementById('paywallModal');
-    const container = document.getElementById('paywall-container');
-    if (!modal || !container) return;
-    container.innerHTML = '<div class="paywall-loading">Loading secure checkout...</div>';
-    modal.classList.add('visible');
-    modal.setAttribute('aria-hidden', 'false');
-  }
-
-  function closePaywallModal() {
-    const modal = document.getElementById('paywallModal');
-    const container = document.getElementById('paywall-container');
-    if (!modal || !container) return;
-    modal.classList.remove('visible');
-    modal.setAttribute('aria-hidden', 'true');
-    container.innerHTML = '';
-  }
-
-  async function presentManagedPaywall() {
-    if (!window.ReclipRevenueCatPaywall) {
-      showToast('Paywall unavailable', true);
-      return { unlocked: false };
-    }
-
+  function onProPillClick() {
+    if (!isNative()) { showToast('Paywall unavailable in demo'); return; }
     try {
-      const result = await window.ReclipRevenueCatPaywall.presentManagedPaywall({
-        containerId: 'paywall-container',
-        entitlementId: PRO_ENTITLEMENT_ID,
-        offeringId: PAYWALL_OFFERING_ID,
-        onBeforePresent: openPaywallModal,
-        onAfterClose: closePaywallModal,
-      });
-
-      if (result.unlocked) {
-        setProUI(true);
-        if (isNative()) {
-          try {
-            const refreshed = await nativeCall('refreshCustomerInfo', []);
-            if (typeof refreshed?.isPro === 'boolean') {
-              setProUI(refreshed.isPro);
-            }
-          } catch (e) {}
-        }
-        showToast('Welcome to ReClip Pro');
-      }
-
-      return result;
-    } catch (e) {
-      closePaywallModal();
-      console.error('RevenueCat paywall failed', e);
-      showToast((e && e.message) || 'Paywall error', true);
-      return { unlocked: false, error: e };
-    }
+      if (isProUser) ReClip.showCustomerCenter();
+      else           ReClip.showPaywall();
+    } catch (e) { showToast('Paywall unavailable', true); }
   }
 
-  async function onProPillClick() {
-    if (isProUser) {
-      if (isNative() && typeof ReClip.showCustomerCenter === 'function') {
-        try { ReClip.showCustomerCenter(); } catch (e) { showToast('Customer center unavailable', true); }
-      } else {
-        showToast('ReClip Pro is active');
-      }
-      return;
-    }
-
-    await presentManagedPaywall();
-  }
+  // Called by MainActivity when the native paywall activity returns.
+  window.onPaywallResult = function(status, err) {
+    if (status === 'purchased')     showToast('Welcome to ReClip Pro');
+    else if (status === 'restored') showToast('Purchases restored');
+    else if (status === 'error')    showToast(err || 'Paywall error', true);
+    // 'cancelled' — silent
+  };
 
   // Pushed by the RevenueCat updatedCustomerInfoListener whenever
   // entitlement changes (purchase, expiry, restore from another device).
