@@ -18,6 +18,7 @@ import android.os.Looper;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.webkit.JavascriptInterface;
+import android.webkit.ConsoleMessage;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -41,16 +42,79 @@ import java.io.OutputStream;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "ReClip";
-
     private WebView webView;
     private PaywallLauncher paywallLauncher;
     private final ExecutorService executor = Executors.newFixedThreadPool(3);
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private String pendingSharedUrl = null;
+
+    private void showDownloadNotification(String title, int percent, String status, boolean indeterminate) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        notifyDownloadService(DownloadService.ACTION_UPDATE, title, status, percent, indeterminate, false);
+    }
+
+    private void completeDownloadNotification(String title, boolean success, String detail) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        notifyDownloadService(DownloadService.ACTION_FINISH, title, detail, success ? 100 : 0, false, success);
+    }
+
+    private void notifyDownloadService(
+        String action, String title, String text, int progress, boolean indeterminate, boolean success
+    ) {
+        Intent i = new Intent(this, DownloadService.class);
+        i.setAction(action);
+        i.putExtra(DownloadService.EXTRA_TITLE, title);
+        i.putExtra(DownloadService.EXTRA_TEXT, text);
+        i.putExtra(DownloadService.EXTRA_PROGRESS, progress);
+        i.putExtra(DownloadService.EXTRA_INDETERMINATE, indeterminate);
+        i.putExtra(DownloadService.EXTRA_SUCCESS, success);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(i);
+        } else {
+            startService(i);
+        }
+    }
+
+    private String progressTextFromJson(String progressJson) {
+        try {
+            org.json.JSONObject p = new org.json.JSONObject(progressJson);
+            String status = p.optString("status", "");
+            int percent = (int) Math.round(p.optDouble("percent", 0));
+            String speed = p.optString("speed", "");
+            String eta = p.optString("eta", "");
+            StringBuilder msg = new StringBuilder();
+            if (percent > 0) msg.append(percent).append("%");
+            if (!speed.isEmpty()) {
+                if (msg.length() > 0) msg.append(" · ");
+                msg.append(speed);
+            }
+            if (!eta.isEmpty()) {
+                if (msg.length() > 0) msg.append(" · ");
+                msg.append("ETA ").append(eta);
+            }
+            if (msg.length() == 0) {
+                if ("processing".equals(status)) return "Processing...";
+                if ("downloading".equals(status)) return "Downloading...";
+                return "Starting...";
+            }
+            return msg.toString();
+        } catch (Exception e) {
+            return "Downloading...";
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -157,7 +221,17 @@ public class MainActivity extends AppCompatActivity {
         settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
 
         webView.setWebViewClient(new WebViewClient());
-        webView.setWebChromeClient(new WebChromeClient());
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onConsoleMessage(ConsoleMessage consoleMessage) {
+                Log.d(
+                    TAG,
+                    "WebViewConsole: " + consoleMessage.message() +
+                    " @" + consoleMessage.sourceId() + ":" + consoleMessage.lineNumber()
+                );
+                return true;
+            }
+        });
         webView.setBackgroundColor(0xFF0F0F23);
 
         webView.addJavascriptInterface(new ReClipBridge(), "ReClip");
@@ -237,7 +311,7 @@ public class MainActivity extends AppCompatActivity {
     private String saveFileToDownloads(File srcFile, String mimeType) {
         if (!srcFile.exists()) return null;
 
-        String filename = srcFile.getName();
+        String filename = normalizeSavedFilename(srcFile.getName());
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             // Android 10+ — use MediaStore (no storage permission needed)
@@ -332,8 +406,28 @@ public class MainActivity extends AppCompatActivity {
         if (lower.endsWith(".mp3")) return "audio/mpeg";
         if (lower.endsWith(".m4a") || lower.endsWith(".aac")) return "audio/mp4";
         if (lower.endsWith(".opus") || lower.endsWith(".ogg")) return "audio/ogg";
+        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+        if (lower.endsWith(".png")) return "image/png";
+        if (lower.endsWith(".webp")) return "image/webp";
         if (lower.endsWith(".webm")) return "video/webm";
         return "video/mp4";
+    }
+
+    private String normalizeSavedFilename(String originalName) {
+        if (originalName == null || originalName.trim().isEmpty()) {
+            return "reclip_download";
+        }
+        String name = originalName.trim();
+        String lower = name.toLowerCase(Locale.ROOT);
+
+        // yt-dlp thumbnail conversions can produce names like *.webp.jpg or *.webp.jpeg.
+        if (lower.endsWith(".webp.jpg")) {
+            name = name.substring(0, name.length() - ".webp.jpg".length()) + "_thumbnail.jpg";
+        } else if (lower.endsWith(".webp.jpeg")) {
+            name = name.substring(0, name.length() - ".webp.jpeg".length()) + "_thumbnail.jpg";
+        }
+
+        return name;
     }
 
     /**
@@ -357,6 +451,7 @@ public class MainActivity extends AppCompatActivity {
                     configureFFmpeg(engine);
                     PyObject result = engine.callAttr("get_info", url);
                     String json = result.toString();
+                    Log.i(TAG, "fetchInfo result: " + json);
                     postToWebView("window._nativeCallback('" + callbackId + "', " + json + ");");
                 } catch (Exception e) {
                     Log.e(TAG, "fetchInfo error", e);
@@ -370,6 +465,8 @@ public class MainActivity extends AppCompatActivity {
         @JavascriptInterface
         public void startDownload(String url, String formatChoice, String formatId, String title, String callbackId) {
             executor.execute(() -> {
+                AtomicBoolean monitorRunning = new AtomicBoolean(true);
+                Thread progressMonitor = null;
                 try {
                     String premiumReason = premiumRestrictionError(url, formatChoice);
                     if (premiumReason != null) {
@@ -385,6 +482,29 @@ public class MainActivity extends AppCompatActivity {
                     PyObject engine = py.getModule("reclip_engine");
                     configureFFmpeg(engine);
                     engine.callAttr("reset_progress");
+
+                    final String notifTitle =
+                        (title != null && !title.trim().isEmpty()) ? title.trim() : "ReClip Download";
+                    showDownloadNotification(notifTitle, 0, "Starting...", true);
+                    progressMonitor = new Thread(() -> {
+                        while (monitorRunning.get()) {
+                            try {
+                                String pJson = engine.callAttr("get_progress").toString();
+                                org.json.JSONObject p = new org.json.JSONObject(pJson);
+                                String status = p.optString("status", "");
+                                int percent = (int) Math.round(p.optDouble("percent", 0));
+                                boolean indeterminate = "processing".equals(status) || percent <= 0;
+                                showDownloadNotification(
+                                    notifTitle,
+                                    percent,
+                                    progressTextFromJson(pJson),
+                                    indeterminate
+                                );
+                            } catch (Exception ignored) { }
+                            try { Thread.sleep(700); } catch (InterruptedException ignored) { break; }
+                        }
+                    });
+                    progressMonitor.start();
 
                     // Download to app cache first
                     String cacheDir = getCacheDir().getAbsolutePath() + "/reclip";
@@ -444,12 +564,32 @@ public class MainActivity extends AppCompatActivity {
                         Log.e(TAG, "Error saving file", moveErr);
                     }
 
+                    try {
+                        org.json.JSONObject finalObj = new org.json.JSONObject(json);
+                        boolean ok = finalObj.optBoolean("success", false);
+                        if (ok) {
+                            completeDownloadNotification(notifTitle, true, "Download complete");
+                        } else {
+                            completeDownloadNotification(
+                                notifTitle, false, finalObj.optString("error", "Download failed")
+                            );
+                        }
+                    } catch (Exception ignored) {
+                        completeDownloadNotification(notifTitle, false, "Download failed");
+                    }
+
                     postToWebView("window._nativeCallback('" + callbackId + "', " + json + ");");
                 } catch (Exception e) {
                     Log.e(TAG, "startDownload error", e);
+                    completeDownloadNotification(title, false, e.getMessage());
                     String err = "{\"success\":false,\"error\":\"" +
                         e.getMessage().replace("\"", "\\\"") + "\"}";
                     postToWebView("window._nativeCallback('" + callbackId + "', " + err + ");");
+                } finally {
+                    monitorRunning.set(false);
+                    if (progressMonitor != null) {
+                        progressMonitor.interrupt();
+                    }
                 }
             });
         }
@@ -602,6 +742,27 @@ public class MainActivity extends AppCompatActivity {
                 return engine.callAttr("check_dependencies").toString();
             } catch (Exception e) {
                 Log.e(TAG, "checkEngine error", e);
+                return "{\"success\":false,\"error\":\"" +
+                    e.getMessage().replace("\"", "\\\"") + "\"}";
+            }
+        }
+
+        @JavascriptInterface
+        public String getRuntimeInfo() {
+            try {
+                org.json.JSONObject out = new org.json.JSONObject();
+                out.put("mode", "local_on_device");
+                out.put("server", "none (in-process, no IP:PORT)");
+                out.put("nativeLibraryDir", getFFmpegNativeDir());
+                out.put("writableFfmpegDir", getFFmpegWritableDir());
+                out.put("bundledFfmpegPath", ReClipApplication.getFFmpegPath());
+                out.put("bundledFfprobePath", ReClipApplication.getFFprobePath());
+                out.put("sdkInt", Build.VERSION.SDK_INT);
+                out.put("appPackage", getPackageName());
+                out.put("isPro", RevenueCatManager.INSTANCE.isPro());
+                out.put("revenueCatConfigured", RevenueCatManager.INSTANCE.isSdkConfigured());
+                return out.toString();
+            } catch (Exception e) {
                 return "{\"success\":false,\"error\":\"" +
                     e.getMessage().replace("\"", "\\\"") + "\"}";
             }

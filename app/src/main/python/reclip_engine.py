@@ -151,9 +151,12 @@ def _spotify_error(message):
 
 def _require_spotify_credentials():
     if not _spotify_client_id or not _spotify_client_secret:
+        id_len = len(_spotify_client_id or '')
+        secret_len = len(_spotify_client_secret or '')
         raise RuntimeError(
             'Spotify support is not configured. Set SPOTIFY_CLIENT_ID and '
-            'SPOTIFY_CLIENT_SECRET at build time.'
+            'SPOTIFY_CLIENT_SECRET at build time. '
+            f'(debug: id_len={id_len}, secret_len={secret_len})'
         )
 
 
@@ -214,6 +217,71 @@ def _spotify_type_and_id(url):
     if kind not in ('track', 'album', 'playlist'):
         raise RuntimeError('Only public Spotify track, album, and playlist links are supported.')
     return kind, spotify_id, resolved
+
+
+def _download_thumbnail(url, output_dir, base_name):
+    if not url or not output_dir:
+        return ''
+    safe_base = ''.join(c for c in (base_name or 'cover') if c.isalnum() or c in ('-', '_')).strip()
+    safe_base = safe_base or 'cover'
+    path = os.path.join(output_dir, safe_base + '.jpg')
+    try:
+        with urllib.request.urlopen(url, timeout=20) as response, open(path, 'wb') as f:
+            f.write(response.read())
+        return path if os.path.exists(path) else ''
+    except Exception:
+        return ''
+
+
+def _embed_audio_metadata(file_path, track, artwork_path=''):
+    if not file_path or not os.path.exists(file_path):
+        return file_path
+    if not _ffmpeg_exec_path or not os.path.exists(_ffmpeg_exec_path):
+        return file_path
+    if not isinstance(track, dict):
+        return file_path
+
+    title = (track.get('name') or '').strip()
+    artists = ', '.join(a.get('name', '') for a in (track.get('artists') or []) if a.get('name')).strip()
+    album = ((track.get('album') or {}).get('name') or '').strip()
+    release_date = ((track.get('album') or {}).get('release_date') or '').strip()
+
+    tmp_out = file_path + '.meta.tmp' + os.path.splitext(file_path)[1]
+    cmd = [_ffmpeg_exec_path, '-y', '-i', file_path]
+    with_art = bool(artwork_path and os.path.exists(artwork_path))
+    if with_art:
+        cmd.extend(['-i', artwork_path, '-map', '0:a', '-map', '1:v'])
+    cmd.extend(['-c:a', 'copy'])
+    if with_art:
+        cmd.extend(['-c:v', 'mjpeg', '-disposition:v:0', 'attached_pic'])
+    cmd.extend(['-map_metadata', '-1'])
+    if title:
+        cmd.extend(['-metadata', f'title={title}'])
+    if artists:
+        cmd.extend(['-metadata', f'artist={artists}'])
+    if album:
+        cmd.extend(['-metadata', f'album={album}'])
+    if release_date:
+        cmd.extend(['-metadata', f'date={release_date}'])
+    if with_art:
+        cmd.extend(['-metadata:s:v', 'title=Album cover', '-metadata:s:v', 'comment=Cover (front)'])
+    if file_path.lower().endswith('.mp3'):
+        cmd.extend(['-id3v2_version', '3'])
+    cmd.append(tmp_out)
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
+        if result.returncode == 0 and os.path.exists(tmp_out):
+            os.replace(tmp_out, file_path)
+    except Exception:
+        pass
+    finally:
+        if os.path.exists(tmp_out):
+            try:
+                os.remove(tmp_out)
+            except Exception:
+                pass
+    return file_path
 
 
 def _track_to_reclip_item(track, index=None, list_name=None, fallback_album=None):
@@ -388,6 +456,8 @@ def download_media(url, output_dir, format_choice='video', format_id=None, title
             'noplaylist': True,
             'outtmpl': out_template,
             'progress_hooks': [_progress_hook],
+            'writethumbnail': True,
+            'addmetadata': True,
         }
 
         # Apply bundled ffmpeg location
@@ -402,33 +472,57 @@ def download_media(url, output_dir, format_choice='video', format_id=None, title
             # libmp3lame requires the encoder to be built into ffmpeg.
             # If not available, fall back to AAC (always available in ffmpeg).
             if _check_libmp3lame():
-                ydl_opts['postprocessors'] = [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '192',
-                }]
+                ydl_opts['postprocessors'] = [
+                    {
+                        'key': 'FFmpegExtractAudio',
+                        'preferredcodec': 'mp3',
+                        'preferredquality': '192',
+                    },
+                    {'key': 'FFmpegMetadata'},
+                    {'key': 'EmbedThumbnail'},
+                ]
                 expected_ext = '.mp3'
             else:
                 # Fallback: AAC in M4A container (always works)
-                ydl_opts['postprocessors'] = [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'aac',
-                    'preferredquality': '192',
-                }]
+                ydl_opts['postprocessors'] = [
+                    {
+                        'key': 'FFmpegExtractAudio',
+                        'preferredcodec': 'aac',
+                        'preferredquality': '192',
+                    },
+                    {'key': 'FFmpegMetadata'},
+                    {'key': 'EmbedThumbnail'},
+                ]
                 expected_ext = '.m4a'
         elif format_id:
             ydl_opts['format'] = f'{format_id}+bestaudio/best'
             ydl_opts['merge_output_format'] = 'mp4'
+            ydl_opts['postprocessors'] = [
+                {'key': 'FFmpegMetadata'},
+                {'key': 'EmbedThumbnail'},
+            ]
             expected_ext = '.mp4'
         else:
             ydl_opts['format'] = 'bestvideo+bestaudio/best'
             ydl_opts['merge_output_format'] = 'mp4'
+            ydl_opts['postprocessors'] = [
+                {'key': 'FFmpegMetadata'},
+                {'key': 'EmbedThumbnail'},
+            ]
             expected_ext = '.mp4'
 
         downloaded_file = None
+        downloaded_thumb = ''
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
+            requested = (info.get('requested_downloads') or [])
+            for req in requested:
+                if isinstance(req, dict):
+                    thumb_path = req.get('filepath')
+                    if isinstance(thumb_path, str) and thumb_path.lower().endswith(('.jpg', '.jpeg', '.webp', '.png')):
+                        if os.path.exists(thumb_path):
+                            downloaded_thumb = thumb_path
 
             # For audio, the extension changes after postprocessing
             if format_choice == 'audio' and expected_ext:
@@ -453,12 +547,21 @@ def download_media(url, output_dir, format_choice='video', format_id=None, title
 
         if downloaded_file and os.path.exists(downloaded_file):
             file_size = os.path.getsize(downloaded_file)
-            return json.dumps({
+            if not downloaded_thumb:
+                base = os.path.splitext(downloaded_file)[0]
+                for ext in ('.jpg', '.jpeg', '.webp', '.png'):
+                    t = base + ext
+                    if os.path.exists(t):
+                        downloaded_thumb = t
+                        break
+            result = {
                 'success': True,
                 'file': downloaded_file,
                 'filename': os.path.basename(downloaded_file),
                 'size': file_size,
-            })
+            }
+            # Keep artwork embedded in the media file; don't expose sidecar image files.
+            return json.dumps(result)
         else:
             # List what's in the output dir for debugging
             files_in_dir = []
@@ -520,9 +623,16 @@ def _download_spotify_media(url, output_dir):
         ydl_opts = {
             'quiet': True,
             'no_warnings': True,
+            'ignoreconfig': True,
             'noplaylist': True,
             'format': 'bestaudio/best',
-            'outtmpl': out_template,
+            'paths': {
+                'home': output_dir,
+                'temp': output_dir,
+            },
+            'outtmpl': {
+                'default': f'{safe_title}.%(ext)s',
+            },
             'progress_hooks': [_progress_hook],
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
@@ -532,27 +642,69 @@ def _download_spotify_media(url, output_dir):
         }
         ydl_opts.update(_get_ffmpeg_opts())
 
-        downloaded_file = None
+        downloaded_file = ''
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info('ytsearch1:' + query, download=True)
             entry = (info.get('entries') or [info])[0]
             filename = ydl.prepare_filename(entry)
             candidate = os.path.splitext(filename)[0] + expected_ext
-            downloaded_file = candidate if os.path.exists(candidate) else filename
+            candidate_paths = [
+                candidate,
+                filename,
+                info.get('filepath', ''),
+                info.get('_filename', ''),
+                entry.get('filepath', ''),
+                entry.get('_filename', ''),
+            ]
+            for requested in entry.get('requested_downloads') or []:
+                if isinstance(requested, dict):
+                    candidate_paths.append(requested.get('filepath', ''))
+            for maybe_path in candidate_paths:
+                if isinstance(maybe_path, str) and maybe_path and os.path.exists(maybe_path):
+                    downloaded_file = maybe_path
+                    break
 
         _current_progress = {'percent': 100, 'speed': '', 'eta': '', 'status': 'processing'}
 
         filename = downloaded_file or ''
         if not filename or not os.path.exists(filename):
+            audio_exts = ('.mp3', '.m4a', '.aac', '.opus', '.ogg', '.wav')
+            picked = ''
             for f in sorted(os.listdir(output_dir),
                             key=lambda x: os.path.getmtime(os.path.join(output_dir, x)),
                             reverse=True):
                 candidate = os.path.join(output_dir, f)
-                if os.path.isfile(candidate) and not f.endswith(('.part', '.ytdl')):
-                    filename = candidate
+                lower = f.lower()
+                if not os.path.isfile(candidate):
+                    continue
+                if lower.endswith(('.part', '.ytdl', '.tmp')):
+                    continue
+                if not lower.endswith(audio_exts):
+                    continue
+                if safe_title and not f.startswith(safe_title):
+                    continue
+                picked = candidate
+                break
+            if not picked:
+                for f in sorted(os.listdir(output_dir),
+                                key=lambda x: os.path.getmtime(os.path.join(output_dir, x)),
+                                reverse=True):
+                    candidate = os.path.join(output_dir, f)
+                    lower = f.lower()
+                    if not os.path.isfile(candidate):
+                        continue
+                    if lower.endswith(('.part', '.ytdl', '.tmp')):
+                        continue
+                    if not lower.endswith(audio_exts):
+                        continue
+                    picked = candidate
                     break
+            filename = picked
 
         if filename and os.path.exists(filename):
+            thumbnail_url = item.get('thumbnail') or ''
+            artwork_path = _download_thumbnail(thumbnail_url, output_dir, f'spotify_cover_{spotify_id}')
+            filename = _embed_audio_metadata(filename, track, artwork_path)
             return json.dumps({
                 'success': True,
                 'source': 'spotify',
@@ -561,7 +713,9 @@ def _download_spotify_media(url, output_dir):
                 'size': os.path.getsize(filename),
                 'title': title,
                 'uploader': uploader,
-                'thumbnail': item.get('thumbnail') or '',
+                'thumbnail': thumbnail_url,
+                'album': ((track.get('album') or {}).get('name') or ''),
+                'artists': [a.get('name', '') for a in (track.get('artists') or []) if a.get('name')],
             })
 
         return json.dumps({
@@ -569,6 +723,8 @@ def _download_spotify_media(url, output_dir):
             'source': 'spotify',
             'error': 'Spotify match downloaded, but the output file was not found.',
             'output_dir': output_dir,
+            'expected_ext': expected_ext,
+            'files_in_dir': sorted(os.listdir(output_dir)) if os.path.isdir(output_dir) else [],
         })
     except Exception as e:
         return json.dumps({

@@ -38,8 +38,8 @@ object RevenueCatManager {
     // Sandbox / test key — replace via BuildConfig or remote config before shipping.
     private const val API_KEY = "test_DwBdymdjIRmMSwpHwvCUzVoFsbQ"
 
-    /** Entitlement identifier (lowercase snake_case, matches the RC dashboard). */
-    const val ENTITLEMENT_PRO = "reclip_pro"
+    /** Entitlement identifier (must exactly match the RC dashboard key). */
+    const val ENTITLEMENT_PRO = "ReClip Pro Pro"
 
     /** Product identifier for the lifetime one-time purchase. */
     const val LIFETIME_PRODUCT_ID = "lifetime"
@@ -86,8 +86,16 @@ object RevenueCatManager {
     }
 
     /** Synchronous best-effort entitlement check off the cached info. */
-    fun isPro(): Boolean =
-        cachedCustomerInfo?.entitlements?.get(ENTITLEMENT_PRO)?.isActive == true
+    fun isPro(): Boolean {
+        val info = cachedCustomerInfo ?: return false
+        val proEntitlementActive = info.entitlements[ENTITLEMENT_PRO]?.isActive == true
+        if (proEntitlementActive) return true
+        // Fallbacks keep the app unlocked for valid purchasers even if
+        // entitlement ids drift from app constants.
+        if (info.entitlements.active.isNotEmpty()) return true
+        if (info.activeSubscriptions.isNotEmpty()) return true
+        return info.nonSubscriptionTransactions.isNotEmpty()
+    }
 
     /** Current RevenueCat app user id used by the native SDK instance. */
     fun getAppUserId(): String? =

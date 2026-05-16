@@ -269,7 +269,10 @@
     flex-shrink: 1;
     min-width: 0;
     max-width: 140px;
+    cursor: pointer;
+    user-select: none;
   }
+  .status-pill:active { transform: scale(0.98); }
   .status-pill span:last-child {
     white-space: nowrap;
     overflow: hidden;
@@ -1513,7 +1516,7 @@
         </svg>
         <span class="header-btn-badge" id="downloadsBadge" style="display:none">0</span>
       </button>
-      <div class="status-pill" id="status">
+      <div class="status-pill" id="status" onclick="openRuntimeInfo()" role="button" aria-label="Runtime status">
         <span class="status-dot" id="statusDot"></span>
         <span id="statusLabel">Ready</span>
       </div>
@@ -1648,11 +1651,31 @@
   <span id="toastText"></span>
 </div>
 
+<div class="sheet-backdrop" id="runtimeBackdrop" onclick="closeRuntimeInfo()"></div>
+<div class="sheet" id="runtimeSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header">
+    <div class="sheet-title-wrap">
+      <h2 class="sheet-title">Runtime Status</h2>
+      <span class="sheet-count">Local Engine</span>
+    </div>
+    <div class="sheet-actions">
+      <button class="sheet-icon-btn" onclick="closeRuntimeInfo()" title="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+  <div class="sheet-list" id="runtimeList"></div>
+</div>
+
 <script>
   // ─── State ───
   let currentFormat = 'video';
   let results = [];
   let downloadStates = {};
+  let lastEngineStatus = null;
   let callbackCounter = 0;
   const callbacks = {};
 
@@ -1677,9 +1700,25 @@
     }
   };
 
+  function isSpotifyUrl(url) {
+    if (!url) return false;
+    const lower = String(url).toLowerCase();
+    return lower.includes('open.spotify.com/') || lower.includes('spotify.link/');
+  }
+
+  function forceFormatAudio() {
+    currentFormat = 'audio';
+    document.getElementById('fmtVideo').classList.toggle('active', false);
+    document.getElementById('fmtAudio').classList.toggle('active', true);
+    renderResults();
+  }
+
   window.onSharedUrl = function(url) {
     document.getElementById('urlInput').value = url;
     toggleClear();
+    if (isSpotifyUrl(url)) {
+      forceFormatAudio();
+    }
     fetchInfo();
   };
 
@@ -2356,6 +2395,44 @@
     toastTimer = setTimeout(() => t.classList.remove('visible'), 3000);
   }
 
+  function runtimeRow(label, value) {
+    return `<div class="dl-item"><div class="dl-meta"><div class="dl-title">${escapeHtml(label)}</div><div class="dl-detail"><span class="mono">${escapeHtml(String(value ?? 'n/a'))}</span></div></div></div>`;
+  }
+
+  function openRuntimeInfo() {
+    const rows = [];
+    try {
+      if (isNative() && typeof ReClip.getRuntimeInfo === 'function') {
+        const info = JSON.parse(ReClip.getRuntimeInfo());
+        rows.push(runtimeRow('Mode', info.mode || 'local_on_device'));
+        rows.push(runtimeRow('Server', info.server || 'none'));
+        rows.push(runtimeRow('Package', info.appPackage || 'unknown'));
+        rows.push(runtimeRow('Android SDK', info.sdkInt || 'unknown'));
+        rows.push(runtimeRow('Pro unlocked', info.isPro ? 'yes' : 'no'));
+        rows.push(runtimeRow('Native lib dir', info.nativeLibraryDir || 'n/a'));
+        rows.push(runtimeRow('Writable ffmpeg dir', info.writableFfmpegDir || 'n/a'));
+        rows.push(runtimeRow('Bundled ffmpeg path', info.bundledFfmpegPath || 'n/a'));
+        rows.push(runtimeRow('Bundled ffprobe path', info.bundledFfprobePath || 'n/a'));
+      }
+      if (lastEngineStatus) {
+        rows.push(runtimeRow('yt-dlp version', lastEngineStatus.yt_dlp_version || 'n/a'));
+        rows.push(runtimeRow('ffmpeg available', lastEngineStatus.ffmpeg_available ? 'yes' : 'no'));
+        rows.push(runtimeRow('ffmpeg path', lastEngineStatus.ffmpeg_path || 'n/a'));
+        rows.push(runtimeRow('mp3 encoder', lastEngineStatus.has_libmp3lame ? 'libmp3lame' : 'not available'));
+      }
+    } catch (e) {
+      rows.push(runtimeRow('Error', e.message || 'Failed to read runtime info'));
+    }
+    document.getElementById('runtimeList').innerHTML = rows.join('');
+    document.getElementById('runtimeBackdrop').classList.add('open');
+    document.getElementById('runtimeSheet').classList.add('open');
+  }
+
+  function closeRuntimeInfo() {
+    document.getElementById('runtimeBackdrop').classList.remove('open');
+    document.getElementById('runtimeSheet').classList.remove('open');
+  }
+
   // ─── ReClip Pro state ───
   // Entitlement/offering ids live on the native side (RevenueCatManager.ENTITLEMENT_PRO
   // and the RC dashboard offering); JS only tracks the current pro flag.
@@ -2378,11 +2455,32 @@
     } catch (e) { showToast('Paywall unavailable', true); }
   }
 
+  function refreshProStatusFromNative() {
+    if (!isNative() || typeof ReClip.refreshCustomerInfo !== 'function') return;
+    const cbId = cb((res) => {
+      if (res && typeof res.isPro === 'boolean') {
+        setProUI(res.isPro);
+      }
+    });
+    try {
+      ReClip.refreshCustomerInfo(cbId);
+    } catch (e) {
+      // Keep UI usable even if bridge call fails; existing state remains.
+    }
+  }
+
   // Called by MainActivity when the native paywall activity returns.
   window.onPaywallResult = function(status, err) {
     if (status === 'purchased')     showToast('Welcome to ReClip Pro');
     else if (status === 'restored') showToast('Purchases restored');
     else if (status === 'error')    showToast(err || 'Paywall error', true);
+    if (status === 'purchased' || status === 'restored') {
+      // Defensive pull: entitlement push usually arrives via onProStatusChanged,
+      // but we re-fetch once here so Audio unlock is immediate even if that
+      // event races with WebView state.
+      refreshProStatusFromNative();
+      setTimeout(refreshProStatusFromNative, 500);
+    }
     // 'cancelled' — silent
   };
 
@@ -2393,8 +2491,13 @@
   document.addEventListener('DOMContentLoaded', () => {
     if (isNative() && typeof ReClip.isProUser === 'function') {
       try { setProUI(ReClip.isProUser()); } catch (e) { setProUI(false); }
+      refreshProStatusFromNative();
     } else {
       setProUI(false);  // demo mode
+    }
+    const statusPill = document.getElementById('status');
+    if (statusPill) {
+      statusPill.addEventListener('click', openRuntimeInfo);
     }
   });
 
@@ -2406,6 +2509,7 @@
     if (isNative()) {
       try {
         const status = JSON.parse(ReClip.checkEngine());
+        lastEngineStatus = status;
         if (status.success) {
           let label = 'v' + status.yt_dlp_version;
           if (!status.ffmpeg_available) {
@@ -2426,6 +2530,9 @@
       if (pending) {
         document.getElementById('urlInput').value = pending;
         toggleClear();
+        if (isSpotifyUrl(pending)) {
+          forceFormatAudio();
+        }
         setTimeout(() => fetchInfo(), 600);
       }
     } else {
