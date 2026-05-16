@@ -36,6 +36,10 @@ class PaywallLauncher(
 
     /** Show the paywall only if the user is not already entitled. */
     fun showIfNeeded() {
+        if (!RevenueCatManager.isSdkConfigured()) {
+            onPaywallResult("error", RevenueCatManager.sdkDisabledReason())
+            return
+        }
         launcher.launchIfNeeded(
             requiredEntitlementIdentifier = RevenueCatManager.ENTITLEMENT_PRO
         )
@@ -43,6 +47,10 @@ class PaywallLauncher(
 
     /** Always show the paywall (e.g. from an explicit "Go Pro" tap). */
     fun showAlways() {
+        if (!RevenueCatManager.isSdkConfigured()) {
+            onPaywallResult("error", RevenueCatManager.sdkDisabledReason())
+            return
+        }
         launcher.launch()
     }
 
@@ -53,6 +61,10 @@ class PaywallLauncher(
      * version without forcing a compile break.
      */
     fun showCustomerCenter() {
+        if (!RevenueCatManager.isSdkConfigured()) {
+            onPaywallResult("error", RevenueCatManager.sdkDisabledReason())
+            return
+        }
         try {
             val klass = Class.forName(
                 "com.revenuecat.purchases.ui.revenuecatui.customercenter.CustomerCenterActivity"

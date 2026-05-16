@@ -38,6 +38,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -71,6 +72,13 @@ public class MainActivity extends AppCompatActivity {
                 "if(window.onPaywallResult)window.onPaywallResult('" + status
                 + "'," + errJson + ");"
             );
+            if ("purchased".equals(status) || "restored".equals(status)) {
+                RevenueCatManager.INSTANCE.refreshCustomerInfo(info -> {
+                    boolean pro = RevenueCatManager.INSTANCE.isPro();
+                    postToWebView("if(window.onProStatusChanged)window.onProStatusChanged(" + pro + ");");
+                    return kotlin.Unit.INSTANCE;
+                });
+            }
             return kotlin.Unit.INSTANCE;
         });
 
@@ -337,6 +345,13 @@ public class MainActivity extends AppCompatActivity {
         public void fetchInfo(String url, String callbackId) {
             executor.execute(() -> {
                 try {
+                    if (isSpotifyLink(url) && !RevenueCatManager.INSTANCE.isPro()) {
+                        postToWebView("window._nativeCallback('" + callbackId + "', " +
+                            jsonError("Spotify downloads require ReClip Pro") + ");");
+                        mainHandler.post(() -> paywallLauncher.showIfNeeded());
+                        return;
+                    }
+
                     Python py = Python.getInstance();
                     PyObject engine = py.getModule("reclip_engine");
                     configureFFmpeg(engine);
@@ -356,6 +371,16 @@ public class MainActivity extends AppCompatActivity {
         public void startDownload(String url, String formatChoice, String formatId, String title, String callbackId) {
             executor.execute(() -> {
                 try {
+                    String premiumReason = premiumRestrictionError(url, formatChoice);
+                    if (premiumReason != null) {
+                        postToWebView("window._nativeCallback('" + callbackId + "', " +
+                            jsonError(premiumReason) + ");");
+                        if (!RevenueCatManager.INSTANCE.isPro()) {
+                            mainHandler.post(() -> paywallLauncher.showIfNeeded());
+                        }
+                        return;
+                    }
+
                     Python py = Python.getInstance();
                     PyObject engine = py.getModule("reclip_engine");
                     configureFFmpeg(engine);
@@ -427,6 +452,30 @@ public class MainActivity extends AppCompatActivity {
                     postToWebView("window._nativeCallback('" + callbackId + "', " + err + ");");
                 }
             });
+        }
+
+        private String premiumRestrictionError(String url, String formatChoice) {
+            boolean isAudioRequest = "audio".equalsIgnoreCase(formatChoice == null ? "" : formatChoice);
+            boolean isSpotifyUrl = isSpotifyLink(url);
+            boolean needsPro = isAudioRequest || isSpotifyUrl;
+            if (needsPro && !RevenueCatManager.INSTANCE.isPro()) {
+                return isSpotifyUrl
+                    ? "Spotify downloads require ReClip Pro"
+                    : "Audio extraction requires ReClip Pro";
+            }
+            return null;
+        }
+
+        private boolean isSpotifyLink(String url) {
+            if (url == null) return false;
+            String lower = url.toLowerCase(Locale.ROOT);
+            return lower.contains("open.spotify.com/") || lower.contains("spotify.link/");
+        }
+
+        private String jsonError(String message) {
+            String escaped = message == null ? "Unknown error"
+                : message.replace("\\", "\\\\").replace("\"", "\\\"");
+            return "{\"success\":false,\"error\":\"" + escaped + "\"}";
         }
 
         @JavascriptInterface

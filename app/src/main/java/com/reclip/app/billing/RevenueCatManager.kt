@@ -93,6 +93,12 @@ object RevenueCatManager {
     fun getAppUserId(): String? =
         if (isConfigured) Purchases.sharedInstance.appUserID else null
 
+    /** Whether the native Purchases SDK has been configured successfully. */
+    fun isSdkConfigured(): Boolean = isConfigured
+
+    /** Human-readable reason surfaced when native billing is unavailable. */
+    fun sdkDisabledReason(): String = NATIVE_SDK_DISABLED
+
     /** Pull latest customer info; updates the cache and fires listeners. */
     fun refreshCustomerInfo(onComplete: ((CustomerInfo?) -> Unit)?) {
         if (!isConfigured) { onComplete?.invoke(null); return }
