@@ -2494,7 +2494,7 @@
             <div class="card-title">${escapeHtml(item.title || 'Untitled')}</div>
             ${metaLine ? `<div class="card-uploader">${escapeHtml(metaLine)}</div>` : ''}
 
-            ${!isAudioOnly && currentFormat === 'video' && item.formats?.length ? `
+            ${!isAudioOnly && currentFormat === 'video' && item.formats?.length && !isDown ? `
               <div class="quality-pills">
                 ${(() => {
                   const preferred = resolvePreferredQuality(item.formats);
