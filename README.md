@@ -21,7 +21,14 @@ It fetches metadata and downloads video/audio locally using yt-dlp + FFmpeg, wit
 
 ## Current key features (Codex)
 
-- Video quality selector cards with bitrate metadata
+- Streamlined fetch flow:
+  - URL paste can auto-fetch
+  - URL box collapses after successful fetch
+  - Fetch button hides after successful fetch
+- Single video quality entry point (no duplicate selectors):
+  - top 4 highest video qualities shown in the collapsed input area
+  - video quality buttons styled identically to audio profile buttons
+  - selected video quality remains persistent per device
 - Persistent video quality preference (per-device, local storage)
 - Pro audio processing profiles:
   - `mp3_320_cbr`
@@ -38,6 +45,8 @@ It fetches metadata and downloads video/audio locally using yt-dlp + FFmpeg, wit
 - Pro-aware share routing:
   - Spotify links auto-route to Audio
   - `music.youtube.com`, `m.youtube.com`, and `youtu.be` auto-route to Audio for Pro users
+- Clear/refresh safety:
+  - stale in-flight fetch responses are ignored after clearing URLs
 
 ## Build requirements
 
