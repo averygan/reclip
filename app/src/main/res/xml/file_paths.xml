@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Public Downloads folder (Android < 10) -->
+    <external-path name="downloads" path="Download/ReClip/" />
+    <external-path name="external-root" path="." />
+
+    <!-- App cache (intermediate download location) -->
+    <cache-path name="cache" path="." />
+
+    <!-- App files (ffmpeg binaries) -->
+    <files-path name="internal" path="." />
+</paths>

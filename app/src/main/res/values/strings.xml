@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ReClip</string>
+    <string name="download_channel">Downloads</string>
+    <string name="download_channel_desc">Active download notifications</string>
+</resources>

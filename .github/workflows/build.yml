@@ -1,0 +1,143 @@
+name: Build ReClip APK
+
+on:
+  push:
+    # Run on every branch push. Avoids the trap of having to add each new
+    # working branch to a hardcoded list before CI will build it.
+    branches: [ '**' ]
+    tags-ignore: [ '**' ]
+  pull_request:
+    # PRs only need to build when they target a trunk-style branch — running
+    # again on PR open/sync to a dev branch would just duplicate the push run.
+    branches: [ main, android ]
+  workflow_dispatch:
+
+jobs:
+  build-ffmpeg:
+    name: Build FFmpeg binaries
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Cache FFmpeg build
+        id: cache-ffmpeg
+        uses: actions/cache@v4
+        with:
+          path: app/src/main/jniLibs
+          key: ffmpeg-android-7.1-${{ hashFiles('scripts/build_ffmpeg.sh') }}
+
+      - name: Install build dependencies
+        if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y yasm nasm pkg-config
+
+      - name: Setup Android NDK
+        if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r27c
+
+      - name: Build FFmpeg for Android
+        if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
+        run: |
+          chmod +x scripts/build_ffmpeg.sh
+          bash scripts/build_ffmpeg.sh
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+
+      - name: Verify FFmpeg binaries
+        run: |
+          echo "=== FFmpeg binaries ==="
+          find app/src/main/jniLibs -type f -name "lib*.so" -exec ls -lh {} \; || echo "No binaries found"
+
+      - name: Upload FFmpeg binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-binaries
+          path: app/src/main/jniLibs/
+          retention-days: 90
+
+  build-apk:
+    name: Build APK
+    needs: build-ffmpeg
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download FFmpeg binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-binaries
+          path: app/src/main/jniLibs/
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-
+
+      - name: Setup Gradle 8.7
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.7'
+
+      - name: Ensure Gradle wrapper is executable
+        run: |
+          chmod +x gradlew
+
+      - name: Build Debug APK
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee build-debug.log
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ReClip-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+      - name: Build Release APK (unsigned)
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee build-release.log
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ReClip-release-unsigned
+          path: app/build/outputs/apk/release/app-release-unsigned.apk
+          retention-days: 30
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            build-debug.log
+            build-release.log
+          if-no-files-found: ignore
+          retention-days: 14
