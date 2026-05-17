@@ -728,6 +728,38 @@
   }
   .fmt-btn::before { display: none; }
 
+  /* ─── Audio Profile Picker ─── */
+  .audio-profile-picker {
+    margin-bottom: 12px;
+    animation: hero-rise 0.5s var(--ease) both;
+  }
+  .audio-profile-pills {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .audio-profile-pill {
+    display: flex; flex-direction: column; align-items: flex-start;
+    gap: 3px; padding: 12px 14px; border-radius: 14px;
+    background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+    cursor: pointer; transition: all 0.35s var(--ease); text-align: left;
+    color: var(--text-mute);
+  }
+  .audio-profile-pill .ap-name {
+    font-size: 12px; font-weight: 700; letter-spacing: -0.1px;
+    color: var(--text-soft);
+  }
+  .audio-profile-pill .ap-desc {
+    font-size: 10px; color: var(--text-faint); line-height: 1.3;
+  }
+  .audio-profile-pill.active {
+    background: linear-gradient(135deg, rgba(231,24,133,0.18), rgba(161,58,240,0.18));
+    border-color: var(--coral);
+    box-shadow: 0 0 16px var(--coral-glow);
+  }
+  .audio-profile-pill.active .ap-name { color: white; }
+  .audio-profile-pill.active .ap-desc { color: rgba(255,255,255,0.6); }
+
   /* ─── Input ─── */
   .input-card {
     background: var(--surface);
@@ -1554,6 +1586,28 @@
         </button>
       </div>
 
+      <!-- Pro Audio Quality Picker (shown when Audio tab is active + Pro) -->
+      <div id="audioProfilePicker" class="audio-profile-picker" style="display:none">
+        <div class="audio-profile-pills">
+          <button class="audio-profile-pill active" data-profile="mp3_320_cbr" onclick="setAudioProfile('mp3_320_cbr')">
+            <span class="ap-name">Broadcast Master</span>
+            <span class="ap-desc">MP3 320kbps CBR · Best compatibility &amp; richest sound</span>
+          </button>
+          <button class="audio-profile-pill" data-profile="mp3_v0_vbr" onclick="setAudioProfile('mp3_v0_vbr')">
+            <span class="ap-name">Dynamic Studio</span>
+            <span class="ap-desc">MP3 VBR V0 · Smarter encoding, transparent quality</span>
+          </button>
+          <button class="audio-profile-pill" data-profile="mp3_256_cbr" onclick="setAudioProfile('mp3_256_cbr')">
+            <span class="ap-name">High-Res Standard</span>
+            <span class="ap-desc">MP3 256kbps CBR · Excellent fidelity, lighter files</span>
+          </button>
+          <button class="audio-profile-pill" data-profile="flac_lossless" onclick="setAudioProfile('flac_lossless')">
+            <span class="ap-name">Studio Archive</span>
+            <span class="ap-desc">FLAC Lossless · Zero quality loss, studio masters</span>
+          </button>
+        </div>
+      </div>
+
       <!-- Input -->
       <div class="input-card" id="inputCard">
         <div class="url-field">
@@ -1673,6 +1727,7 @@
 <script>
   // ─── State ───
   let currentFormat = 'video';
+  let currentAudioProfile = 'mp3_320_cbr';
   let results = [];
   let downloadStates = {};
   let lastEngineStatus = null;
@@ -1758,8 +1813,17 @@
     currentFormat = f;
     document.getElementById('fmtVideo').classList.toggle('active', f === 'video');
     document.getElementById('fmtAudio').classList.toggle('active', f === 'audio');
+    const picker = document.getElementById('audioProfilePicker');
+    if (picker) picker.style.display = (f === 'audio' && isProUser) ? 'grid' : 'none';
     if (window.navigator.vibrate) navigator.vibrate(10);
     renderResults();
+  }
+
+  function setAudioProfile(key) {
+    currentAudioProfile = key;
+    document.querySelectorAll('.audio-profile-pill').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.profile === key);
+    });
   }
 
   function toggleClear() {
@@ -1870,6 +1934,7 @@
       item.audioOnly ? 'audio' : (currentFormat === 'audio' ? 'audio' : 'video'),
       qualityId || '',
       item.title || '',
+      (currentFormat === 'audio' || item.audioOnly) ? currentAudioProfile : '',
     ]);
 
     clearInterval(progressInterval);
@@ -2441,10 +2506,13 @@
   function setProUI(pro) {
     isProUser = pro;
     const pill = document.getElementById('proPill');
-    if (!pill) return;
-    pill.style.display = '';
-    pill.classList.toggle('entitled', pro);
-    document.getElementById('proPillLabel').textContent = pro ? 'Pro' : 'Go Pro';
+    if (pill) {
+      pill.style.display = '';
+      pill.classList.toggle('entitled', pro);
+      document.getElementById('proPillLabel').textContent = pro ? 'Pro' : 'Go Pro';
+    }
+    const picker = document.getElementById('audioProfilePicker');
+    if (picker) picker.style.display = (pro && currentFormat === 'audio') ? 'grid' : 'none';
   }
 
   function onProPillClick() {

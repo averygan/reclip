@@ -450,7 +450,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         @JavascriptInterface
-        public void startDownload(String url, String formatChoice, String formatId, String title, String callbackId) {
+        public void startDownload(String url, String formatChoice, String formatId, String title, String audioProfile, String callbackId) {
             executor.execute(() -> {
                 AtomicBoolean monitorRunning = new AtomicBoolean(true);
                 Thread progressMonitor = null;
@@ -500,7 +500,8 @@ public class MainActivity extends AppCompatActivity {
                     PyObject result = engine.callAttr("download_media",
                         url, cacheDir, formatChoice,
                         formatId.isEmpty() ? null : formatId,
-                        title);
+                        title,
+                        (audioProfile == null || audioProfile.isEmpty()) ? null : audioProfile);
                     String json = result.toString();
 
                     // Parse result and save to public Downloads

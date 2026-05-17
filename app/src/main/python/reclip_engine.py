@@ -23,6 +23,16 @@ import urllib.request
 
 import yt_dlp
 
+_AUDIO_PROFILES = {
+    'mp3_320_cbr':  {'codec': 'mp3',  'quality': '320', 'ext': '.mp3',
+                     'extra_args': ['-ar', '48000', '-compression_level', '0']},
+    'mp3_v0_vbr':   {'codec': 'mp3',  'quality': '0',   'ext': '.mp3',
+                     'extra_args': ['-ar', '44100', '-compression_level', '0']},
+    'mp3_256_cbr':  {'codec': 'mp3',  'quality': '256', 'ext': '.mp3',
+                     'extra_args': ['-ar', '44100', '-compression_level', '0']},
+    'flac_lossless':{'codec': 'flac', 'quality': None,  'ext': '.flac',
+                     'extra_args': ['-ar', '48000']},
+}
 
 # ── FFmpeg path management ──
 _ffmpeg_dir = None          # source dir (nativeLibraryDir)
@@ -421,7 +431,7 @@ def get_info(url):
 
 # ── Download ──
 
-def download_media(url, output_dir, format_choice='video', format_id=None, title=''):
+def download_media(url, output_dir, format_choice='video', format_id=None, title='', audio_profile=None):
     """
     Download video/audio to the specified directory.
     format_choice: 'video' or 'audio'
@@ -465,32 +475,22 @@ def download_media(url, output_dir, format_choice='video', format_id=None, title
 
         if format_choice == 'audio':
             ydl_opts['format'] = 'bestaudio/best'
-            # Choose codec based on what ffmpeg supports.
-            # libmp3lame requires the encoder to be built into ffmpeg.
-            # If not available, fall back to AAC (always available in ffmpeg).
-            if _check_libmp3lame():
-                ydl_opts['postprocessors'] = [
-                    {
-                        'key': 'FFmpegExtractAudio',
-                        'preferredcodec': 'mp3',
-                        'preferredquality': '192',
-                    },
-                    {'key': 'FFmpegMetadata'},
-                    {'key': 'EmbedThumbnail'},
-                ]
-                expected_ext = '.mp3'
+            profile = _AUDIO_PROFILES.get(audio_profile or '', _AUDIO_PROFILES['mp3_320_cbr'])
+            has_lame = _check_libmp3lame()
+
+            if profile['codec'] == 'flac':
+                pp_codec, pp_quality, expected_ext = 'flac', None, '.flac'
+            elif profile['codec'] == 'mp3' and has_lame:
+                pp_codec, pp_quality, expected_ext = 'mp3', profile['quality'], '.mp3'
             else:
-                # Fallback: AAC in M4A container (always works)
-                ydl_opts['postprocessors'] = [
-                    {
-                        'key': 'FFmpegExtractAudio',
-                        'preferredcodec': 'aac',
-                        'preferredquality': '192',
-                    },
-                    {'key': 'FFmpegMetadata'},
-                    {'key': 'EmbedThumbnail'},
-                ]
-                expected_ext = '.m4a'
+                pp_codec, pp_quality, expected_ext = 'aac', '192', '.m4a'
+
+            pp = {'key': 'FFmpegExtractAudio', 'preferredcodec': pp_codec}
+            if pp_quality is not None:
+                pp['preferredquality'] = pp_quality
+            ydl_opts['postprocessors'] = [pp, {'key': 'FFmpegMetadata'}, {'key': 'EmbedThumbnail'}]
+            if pp_codec != 'aac':
+                ydl_opts['postprocessor_args'] = {'ffmpegextractaudio': profile['extra_args']}
         elif format_id:
             ydl_opts['format'] = f'{format_id}+bestaudio/best'
             ydl_opts['merge_output_format'] = 'mp4'
