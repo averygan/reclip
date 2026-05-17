@@ -986,27 +986,55 @@
   }
 
   .quality-pills {
-    display: flex; gap: 5px; margin-bottom: 10px; flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .dl-thumb-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
   .pill {
-    padding: 5px 10px;
-    border-radius: 100px;
+    min-height: 48px;
+    padding: 10px 12px;
+    border-radius: 12px;
     background: rgba(255,255,255,0.04);
     border: 1px solid var(--border);
     color: var(--text-mute);
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: all 0.25s var(--ease);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    text-align: left;
+  }
+  .pill .pill-label {
+    color: var(--text-soft);
+    letter-spacing: 0;
+  }
+  .pill .pill-meta {
+    margin-top: 2px;
     font-family: var(--mono);
     font-size: 10px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s var(--ease);
+    color: var(--text-mute);
   }
+  .pill:active { transform: scale(0.98); }
   .pill.active {
-    background: linear-gradient(135deg, var(--coral), var(--violet));
-    border-color: transparent;
-    color: white;
-    box-shadow: 0 4px 16px var(--coral-glow);
-    transform: scale(1.05);
+    background: linear-gradient(135deg, rgba(231,24,133,0.24), rgba(161,58,240,0.2));
+    border-color: rgba(231,24,133,0.45);
+    box-shadow: 0 6px 18px rgba(231,24,133,0.22);
   }
+  .pill.active .pill-label { color: #fff; }
+  .pill.active .pill-meta { color: rgba(255,255,255,0.76); }
 
   /* Download Button */
   .dl-btn {
@@ -1729,6 +1757,7 @@
   const AUDIO_PROFILE_PREF_KEY = 'reclip_audio_profile_pref';
   const AUDIO_PROFILE_DEFAULT = 'mp3_320_cbr';
   const AUDIO_PROFILE_KEYS = ['mp3_320_cbr', 'mp3_v0_vbr', 'mp3_256_cbr', 'flac_lossless'];
+  const VIDEO_QUALITY_PREF_KEY = 'reclip_video_quality_pref';
   let currentFormat = 'video';
   let currentAudioProfile = AUDIO_PROFILE_DEFAULT;
   let results = [];
@@ -1815,6 +1844,54 @@
     document.querySelectorAll('.audio-profile-pill').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.profile === currentAudioProfile);
     });
+  }
+
+  function parseHeightFromLabel(label) {
+    const match = String(label || '').match(/(\d{3,4})p/i);
+    return match ? Number(match[1]) : 0;
+  }
+
+  function normalizeVideoQualityPref(label) {
+    const h = parseHeightFromLabel(label);
+    return h > 0 ? `${h}p` : '';
+  }
+
+  function getVideoQualityPreference() {
+    try {
+      return normalizeVideoQualityPref(localStorage.getItem(VIDEO_QUALITY_PREF_KEY) || '');
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function saveVideoQualityPreference(label) {
+    const normalized = normalizeVideoQualityPref(label);
+    if (!normalized) return;
+    try { localStorage.setItem(VIDEO_QUALITY_PREF_KEY, normalized); } catch (e) {}
+  }
+
+  function resolvePreferredQuality(formats) {
+    if (!Array.isArray(formats) || !formats.length) return null;
+    const preferred = getVideoQualityPreference();
+    if (!preferred) return formats[0];
+
+    const preferredHeight = parseHeightFromLabel(preferred);
+    const candidates = formats.map(f => ({
+      format: f,
+      height: Number(f.height || parseHeightFromLabel(f.label)),
+    })).filter(x => x.height > 0);
+
+    if (!candidates.length) return formats[0];
+
+    const exact = candidates.find(x => x.height === preferredHeight);
+    if (exact) return exact.format;
+
+    const lower = candidates
+      .filter(x => x.height < preferredHeight)
+      .sort((a, b) => b.height - a.height)[0];
+    if (lower) return lower.format;
+
+    return candidates.sort((a, b) => b.height - a.height)[0].format;
   }
 
   function forceFormatAudio() {
@@ -2204,19 +2281,17 @@
     let html = '';
     items.forEach((entry, i) => {
       const isAudio = entry.format === 'audio';
-      const thumbStyle = entry.thumbnail
-        ? `background-image: url('${entry.thumbnail.replace(/'/g, "\\'")}');`
-        : '';
+      const safeThumb = (entry.thumbnail || '').replace(/'/g, "\\'");
       const safePath = entry.filePath.replace(/'/g, "\\'");
       html += `
         <div class="dl-item" style="animation-delay:${i * 0.03}s" onclick="openHistoryFile('${safePath}')">
-          <div class="dl-thumb ${isAudio ? 'audio' : 'video'}" style="${thumbStyle}">
-            ${!entry.thumbnail ? `
-              <svg class="dl-thumb-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                ${isAudio
-                  ? '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>'
-                  : '<polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>'}
-              </svg>` : ''}
+          <div class="dl-thumb ${isAudio ? 'audio' : 'video'}">
+            ${entry.thumbnail ? `<img class="dl-thumb-img" src="${safeThumb}" alt="" onerror="this.remove()">` : ''}
+            <svg class="dl-thumb-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              ${isAudio
+                ? '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>'
+                : '<polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>'}
+            </svg>
             <span class="dl-type-badge">${isAudio ? 'MP3' : 'MP4'}</span>
           </div>
           <div class="dl-meta">
@@ -2266,6 +2341,13 @@
     if (bytes > 1e9) return (bytes / 1e9).toFixed(1) + ' GB';
     if (bytes > 1e6) return (bytes / 1e6).toFixed(1) + ' MB';
     return Math.round(bytes / 1e3) + ' KB';
+  }
+
+  function formatBitrateKbps(tbr) {
+    const kbps = Number(tbr || 0);
+    if (!(kbps > 0)) return '';
+    if (kbps >= 1000) return (kbps / 1000).toFixed(2).replace(/\.00$/, '') + ' Mbps';
+    return Math.round(kbps) + ' kbps';
   }
 
   function escapeHtml(str) {
@@ -2414,10 +2496,20 @@
 
             ${!isAudioOnly && currentFormat === 'video' && item.formats?.length ? `
               <div class="quality-pills">
-                ${item.formats.map((f, fi) => `
-                  <button class="pill ${fi === 0 ? 'active' : ''}" data-id="${f.id}"
-                    onclick="selectQuality(this, ${i})">${f.label}</button>
-                `).join('')}
+                ${(() => {
+                  const preferred = resolvePreferredQuality(item.formats);
+                  const selectedId = preferred?.id || item.formats[0]?.id || '';
+                  return item.formats.map((f) => {
+                    const isActive = f.id === selectedId;
+                    const meta = formatBitrateKbps(f.tbr) || 'Source';
+                    return `
+                  <button class="pill ${isActive ? 'active' : ''}" data-id="${f.id}" data-label="${f.label || ''}"
+                    onclick="selectQuality(this, ${i})">
+                    <span class="pill-label">${f.label || 'Quality'}</span>
+                    <span class="pill-meta">${meta}</span>
+                  </button>`;
+                  }).join('');
+                })()}
               </div>
             ` : ''}
 
@@ -2494,6 +2586,7 @@
     const card = document.getElementById('card-' + cardIndex);
     card.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
+    saveVideoQualityPreference(btn.dataset.label || '');
     if (window.navigator.vibrate) navigator.vibrate(5);
   }
 

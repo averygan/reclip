@@ -541,6 +541,7 @@ def get_info(url):
                 'id': f['format_id'],
                 'label': f'{height}p',
                 'height': height,
+                'tbr': round(float(f.get('tbr') or 0), 1),
             })
         formats.sort(key=lambda x: x['height'], reverse=True)
 
