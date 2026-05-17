@@ -23,6 +23,7 @@ import urllib.request
 
 import yt_dlp
 
+_MIN_ARTWORK_SIZE = 1200
 _AUDIO_PROFILES = {
     'mp3_320_cbr':  {'codec': 'mp3',  'quality': '320', 'ext': '.mp3',
                      'extra_args': ['-ar', '48000', '-compression_level', '0']},
@@ -240,18 +241,115 @@ def _download_thumbnail(url, output_dir, base_name):
         return ''
 
 
-def _embed_audio_metadata(file_path, track, artwork_path=''):
+def _image_dimensions(path):
+    if not path or not os.path.exists(path):
+        return (0, 0)
+    if not _ffmpeg_exec_path or not os.path.exists(_ffmpeg_exec_path):
+        return (0, 0)
+    ffprobe_path = os.path.join(os.path.dirname(_ffmpeg_exec_path), 'ffprobe')
+    if not os.path.exists(ffprobe_path):
+        ffprobe_path = _ffmpeg_exec_path
+    try:
+        result = subprocess.run(
+            [
+                ffprobe_path,
+                '-v', 'error',
+                '-select_streams', 'v:0',
+                '-show_entries', 'stream=width,height',
+                '-of', 'default=noprint_wrappers=1:nokey=1',
+                path,
+            ],
+            capture_output=True, text=True, timeout=20
+        )
+        if result.returncode != 0:
+            return (0, 0)
+        vals = [v.strip() for v in result.stdout.splitlines() if v.strip()]
+        if len(vals) >= 2:
+            return (int(vals[0]), int(vals[1]))
+    except Exception:
+        pass
+    return (0, 0)
+
+
+def _ensure_min_artwork_size(artwork_path, min_size):
+    if not artwork_path or not os.path.exists(artwork_path):
+        return artwork_path
+    width, height = _image_dimensions(artwork_path)
+    if width >= min_size and height >= min_size:
+        return artwork_path
+    if not _ffmpeg_exec_path or not os.path.exists(_ffmpeg_exec_path):
+        return artwork_path
+
+    out_path = os.path.splitext(artwork_path)[0] + f'_min{min_size}.jpg'
+    # Preserve aspect ratio, scale until both dimensions cover min_size, then center crop.
+    # This prevents warping/stretching while guaranteeing a square cover size.
+    scale_filter = (
+        f"scale={min_size}:{min_size}:force_original_aspect_ratio=increase,"
+        f"crop={min_size}:{min_size}"
+    )
+    try:
+        result = subprocess.run(
+            [
+                _ffmpeg_exec_path, '-y', '-i', artwork_path,
+                '-vf', scale_filter,
+                '-q:v', '2',
+                out_path,
+            ],
+            capture_output=True, text=True, timeout=60
+        )
+        if result.returncode == 0 and os.path.exists(out_path):
+            return out_path
+    except Exception:
+        pass
+    return artwork_path
+
+
+def _normalize_audio_tags(raw):
+    if not isinstance(raw, dict):
+        return {}
+
+    title = (raw.get('title') or raw.get('name') or '').strip()
+    artist = (
+        raw.get('artist')
+        or raw.get('uploader')
+        or raw.get('creator')
+        or raw.get('channel')
+        or ''
+    ).strip()
+    album = (raw.get('album') or '').strip()
+    track = raw.get('track') or raw.get('track_number') or raw.get('track_number_int')
+    if track is None:
+        track = raw.get('trackNumber')
+    date_val = (
+        raw.get('date')
+        or raw.get('release_date')
+        or raw.get('upload_date')
+        or ''
+    ).strip()
+    genre = (raw.get('genre') or '').strip()
+
+    tags = {
+        'title': title,
+        'artist': artist,
+        'album': album,
+        'track': str(track).strip() if track is not None else '',
+        'date': date_val,
+        'genre': genre,
+    }
+    return {k: v for k, v in tags.items() if v}
+
+
+def _embed_audio_metadata(file_path, metadata, artwork_path=''):
     if not file_path or not os.path.exists(file_path):
         return file_path
     if not _ffmpeg_exec_path or not os.path.exists(_ffmpeg_exec_path):
         return file_path
-    if not isinstance(track, dict):
+    if not isinstance(metadata, dict):
         return file_path
 
-    title = (track.get('name') or '').strip()
-    artists = ', '.join(a.get('name', '') for a in (track.get('artists') or []) if a.get('name')).strip()
-    album = ((track.get('album') or {}).get('name') or '').strip()
-    release_date = ((track.get('album') or {}).get('release_date') or '').strip()
+    tags = _normalize_audio_tags(metadata)
+    if artwork_path:
+        artwork_path = _ensure_min_artwork_size(artwork_path, _MIN_ARTWORK_SIZE)
 
     tmp_out = file_path + '.meta.tmp' + os.path.splitext(file_path)[1]
     cmd = [_ffmpeg_exec_path, '-y', '-i', file_path]
@@ -262,14 +360,10 @@ def _embed_audio_metadata(file_path, track, artwork_path=''):
     if with_art:
         cmd.extend(['-c:v', 'mjpeg', '-disposition:v:0', 'attached_pic'])
     cmd.extend(['-map_metadata', '-1'])
-    if title:
-        cmd.extend(['-metadata', f'title={title}'])
-    if artists:
-        cmd.extend(['-metadata', f'artist={artists}'])
-    if album:
-        cmd.extend(['-metadata', f'album={album}'])
-    if release_date:
-        cmd.extend(['-metadata', f'date={release_date}'])
+    for key in ('title', 'artist', 'album', 'track', 'date', 'genre'):
+        val = tags.get(key)
+        if val:
+            cmd.extend(['-metadata', f'{key}={val}'])
     if with_art:
         cmd.extend(['-metadata:s:v', 'title=Album cover', '-metadata:s:v', 'comment=Cover (front)'])
     if file_path.lower().endswith('.mp3'):
@@ -313,6 +407,46 @@ def _track_to_reclip_item(track, index=None, list_name=None, fallback_album=None
     if index is not None:
         item['playlistPosition'] = index + 1
     return item
+
+
+def _largest_spotify_image_url(images):
+    best_url = ''
+    best_area = -1
+    for img in images or []:
+        if not isinstance(img, dict):
+            continue
+        url = img.get('url') or ''
+        if not url:
+            continue
+        w = int(img.get('width') or 0)
+        h = int(img.get('height') or 0)
+        area = w * h
+        if area > best_area:
+            best_area = area
+            best_url = url
+    return best_url
+
+
+def _best_thumbnail_url_from_info(info):
+    if not isinstance(info, dict):
+        return ''
+    best_url = ''
+    best_area = -1
+    for thumb in info.get('thumbnails') or []:
+        if not isinstance(thumb, dict):
+            continue
+        url = thumb.get('url') or ''
+        if not url:
+            continue
+        w = int(thumb.get('width') or 0)
+        h = int(thumb.get('height') or 0)
+        area = w * h
+        if area > best_area:
+            best_area = area
+            best_url = url
+    if best_url:
+        return best_url
+    return info.get('thumbnail') or ''
 
 
 def _get_spotify_info(url):
@@ -541,6 +675,24 @@ def download_media(url, output_dir, format_choice='video', format_id=None, title
                         filename = os.path.join(output_dir, f)
                         break
             downloaded_file = filename
+        source_info = info if isinstance(info, dict) else {}
+
+        if (
+            format_choice == 'audio'
+            and downloaded_file
+            and os.path.exists(downloaded_file)
+        ):
+            artwork_url = _best_thumbnail_url_from_info(source_info)
+            artwork_path = _download_thumbnail(artwork_url, output_dir, f'{safe_title}_cover')
+            metadata = {
+                'title': source_info.get('track') or source_info.get('title') or title or '',
+                'artist': source_info.get('artist') or source_info.get('uploader') or source_info.get('creator') or '',
+                'album': source_info.get('album') or '',
+                'track': source_info.get('track_number') or '',
+                'date': source_info.get('release_date') or source_info.get('upload_date') or '',
+                'genre': source_info.get('genre') or '',
+            }
+            downloaded_file = _embed_audio_metadata(downloaded_file, metadata, artwork_path)
 
         if downloaded_file and os.path.exists(downloaded_file):
             file_size = os.path.getsize(downloaded_file)
@@ -699,9 +851,28 @@ def _download_spotify_media(url, output_dir):
             filename = picked
 
         if filename and os.path.exists(filename):
-            thumbnail_url = item.get('thumbnail') or ''
+            album_images = (track.get('album') or {}).get('images') or []
+            thumbnail_url = _largest_spotify_image_url(album_images) or item.get('thumbnail') or ''
+            artist_genre = ''
+            try:
+                first_artist = ((track.get('artists') or [None])[0] or {}).get('id')
+                if first_artist:
+                    artist_data = _spotify_api(f'artists/{first_artist}')
+                    genres = artist_data.get('genres') or []
+                    if genres:
+                        artist_genre = genres[0]
+            except Exception:
+                artist_genre = ''
             artwork_path = _download_thumbnail(thumbnail_url, output_dir, f'spotify_cover_{spotify_id}')
-            filename = _embed_audio_metadata(filename, track, artwork_path)
+            metadata = {
+                'title': track.get('name') or title,
+                'artist': uploader,
+                'album': ((track.get('album') or {}).get('name') or ''),
+                'track': track.get('track_number') or '',
+                'date': ((track.get('album') or {}).get('release_date') or ''),
+                'genre': artist_genre,
+            }
+            filename = _embed_audio_metadata(filename, metadata, artwork_path)
             return json.dumps({
                 'success': True,
                 'source': 'spotify',
@@ -777,12 +948,29 @@ def check_dependencies():
         ffmpeg_path = _ffmpeg_exec_path or ''
         has_mp3 = _check_libmp3lame() if ffmpeg_available else False
 
+        audio_profiles = []
+        for key, profile in _AUDIO_PROFILES.items():
+            codec = profile.get('codec', '')
+            quality = profile.get('quality')
+            effective_supported = True
+            if codec == 'mp3' and not has_mp3:
+                effective_supported = False
+            audio_profiles.append({
+                'key': key,
+                'codec': codec,
+                'quality': quality if quality is not None else 'lossless',
+                'ext': profile.get('ext', ''),
+                'effective_supported': effective_supported,
+            })
+
         return json.dumps({
             'success': True,
             'yt_dlp_version': ytdlp_version,
             'ffmpeg_available': ffmpeg_available,
             'ffmpeg_path': ffmpeg_path,
             'has_libmp3lame': has_mp3,
+            'audio_profiles': audio_profiles,
+            'audio_profile_default': 'mp3_320_cbr',
         })
     except Exception as e:
         return json.dumps({

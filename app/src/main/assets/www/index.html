@@ -1726,8 +1726,11 @@
 
 <script>
   // ─── State ───
+  const AUDIO_PROFILE_PREF_KEY = 'reclip_audio_profile_pref';
+  const AUDIO_PROFILE_DEFAULT = 'mp3_320_cbr';
+  const AUDIO_PROFILE_KEYS = ['mp3_320_cbr', 'mp3_v0_vbr', 'mp3_256_cbr', 'flac_lossless'];
   let currentFormat = 'video';
-  let currentAudioProfile = 'mp3_320_cbr';
+  let currentAudioProfile = AUDIO_PROFILE_DEFAULT;
   let results = [];
   let downloadStates = {};
   let lastEngineStatus = null;
@@ -1761,17 +1764,71 @@
     return lower.includes('open.spotify.com/') || lower.includes('spotify.link/');
   }
 
+  function isYouTubeMusicUrl(url) {
+    if (!url) return false;
+    try {
+      const parsed = new URL(String(url));
+      const host = (parsed.hostname || '').toLowerCase();
+      return host === 'music.youtube.com' || host === 'm.youtube.com' || host === 'youtu.be';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function shouldForceAudioFromShare(url) {
+    if (isSpotifyUrl(url)) return true;
+    if (isYouTubeMusicUrl(url) && isProUser) return true;
+    return false;
+  }
+
+  function syncAudioProfilePickerVisibility() {
+    const picker = document.getElementById('audioProfilePicker');
+    if (picker) picker.style.display = (currentFormat === 'audio' && isProUser) ? 'grid' : 'none';
+    applyAudioProfileSelectionUI();
+  }
+
+  function normalizeAudioProfileKey(key) {
+    if (!key || !AUDIO_PROFILE_KEYS.includes(key)) return AUDIO_PROFILE_DEFAULT;
+    return key;
+  }
+
+  function loadAudioProfilePreference() {
+    try {
+      const saved = localStorage.getItem(AUDIO_PROFILE_PREF_KEY);
+      const normalized = normalizeAudioProfileKey(saved);
+      currentAudioProfile = normalized;
+      if (saved !== normalized) {
+        localStorage.setItem(AUDIO_PROFILE_PREF_KEY, normalized);
+      }
+    } catch (e) {
+      currentAudioProfile = AUDIO_PROFILE_DEFAULT;
+    }
+  }
+
+  function saveAudioProfilePreference() {
+    try {
+      localStorage.setItem(AUDIO_PROFILE_PREF_KEY, normalizeAudioProfileKey(currentAudioProfile));
+    } catch (e) {}
+  }
+
+  function applyAudioProfileSelectionUI() {
+    document.querySelectorAll('.audio-profile-pill').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.profile === currentAudioProfile);
+    });
+  }
+
   function forceFormatAudio() {
     currentFormat = 'audio';
     document.getElementById('fmtVideo').classList.toggle('active', false);
     document.getElementById('fmtAudio').classList.toggle('active', true);
+    syncAudioProfilePickerVisibility();
     renderResults();
   }
 
   window.onSharedUrl = function(url) {
     document.getElementById('urlInput').value = url;
     toggleClear();
-    if (isSpotifyUrl(url)) {
+    if (shouldForceAudioFromShare(url)) {
       forceFormatAudio();
     }
     fetchInfo();
@@ -1813,17 +1870,15 @@
     currentFormat = f;
     document.getElementById('fmtVideo').classList.toggle('active', f === 'video');
     document.getElementById('fmtAudio').classList.toggle('active', f === 'audio');
-    const picker = document.getElementById('audioProfilePicker');
-    if (picker) picker.style.display = (f === 'audio' && isProUser) ? 'grid' : 'none';
+    syncAudioProfilePickerVisibility();
     if (window.navigator.vibrate) navigator.vibrate(10);
     renderResults();
   }
 
   function setAudioProfile(key) {
-    currentAudioProfile = key;
-    document.querySelectorAll('.audio-profile-pill').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.profile === key);
-    });
+    currentAudioProfile = normalizeAudioProfileKey(key);
+    applyAudioProfileSelectionUI();
+    saveAudioProfilePreference();
   }
 
   function toggleClear() {
@@ -2484,6 +2539,15 @@
         rows.push(runtimeRow('ffmpeg available', lastEngineStatus.ffmpeg_available ? 'yes' : 'no'));
         rows.push(runtimeRow('ffmpeg path', lastEngineStatus.ffmpeg_path || 'n/a'));
         rows.push(runtimeRow('mp3 encoder', lastEngineStatus.has_libmp3lame ? 'libmp3lame' : 'not available'));
+        rows.push(runtimeRow('Audio profile (active)', currentAudioProfile || AUDIO_PROFILE_DEFAULT));
+        if (Array.isArray(lastEngineStatus.audio_profiles) && lastEngineStatus.audio_profiles.length) {
+          const summary = lastEngineStatus.audio_profiles.map(p => {
+            const q = p.quality === 'lossless' ? 'lossless' : String(p.quality || '');
+            const base = `${p.key}(${p.codec}/${q})`;
+            return p.effective_supported ? base : `${base}*`;
+          }).join(', ');
+          rows.push(runtimeRow('Audio profiles (supported)', summary));
+        }
       }
     } catch (e) {
       rows.push(runtimeRow('Error', e.message || 'Failed to read runtime info'));
@@ -2511,8 +2575,7 @@
       pill.classList.toggle('entitled', pro);
       document.getElementById('proPillLabel').textContent = pro ? 'Pro' : 'Go Pro';
     }
-    const picker = document.getElementById('audioProfilePicker');
-    if (picker) picker.style.display = (pro && currentFormat === 'audio') ? 'grid' : 'none';
+    syncAudioProfilePickerVisibility();
   }
 
   function onProPillClick() {
@@ -2554,9 +2617,14 @@
 
   // Pushed by the RevenueCat updatedCustomerInfoListener whenever
   // entitlement changes (purchase, expiry, restore from another device).
-  window.onProStatusChanged = function(pro) { setProUI(pro); };
+  window.onProStatusChanged = function(pro) {
+    setProUI(pro);
+    syncAudioProfilePickerVisibility();
+  };
 
   document.addEventListener('DOMContentLoaded', () => {
+    loadAudioProfilePreference();
+    applyAudioProfileSelectionUI();
     if (isNative() && typeof ReClip.isProUser === 'function') {
       try { setProUI(ReClip.isProUser()); } catch (e) { setProUI(false); }
       refreshProStatusFromNative();
@@ -2578,6 +2646,11 @@
       try {
         const status = JSON.parse(ReClip.checkEngine());
         lastEngineStatus = status;
+        if (status && status.audio_profile_default && !AUDIO_PROFILE_KEYS.includes(currentAudioProfile)) {
+          currentAudioProfile = normalizeAudioProfileKey(status.audio_profile_default);
+          saveAudioProfilePreference();
+          applyAudioProfileSelectionUI();
+        }
         if (status.success) {
           let label = 'v' + status.yt_dlp_version;
           if (!status.ffmpeg_available) {
@@ -2598,7 +2671,7 @@
       if (pending) {
         document.getElementById('urlInput').value = pending;
         toggleClear();
-        if (isSpotifyUrl(pending)) {
+        if (shouldForceAudioFromShare(pending)) {
           forceFormatAudio();
         }
         setTimeout(() => fetchInfo(), 600);
