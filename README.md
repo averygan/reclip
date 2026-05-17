@@ -61,6 +61,16 @@ It fetches metadata and downloads video/audio locally using yt-dlp + FFmpeg, wit
 .\gradlew.bat :app:installDebug
 ```
 
+## UI screenshots
+
+### Home / video flow
+
+![ReClip home UI](docs/screenshots/reclip-home.png)
+
+### Audio tab
+
+![ReClip audio tab UI](docs/screenshots/reclip-audio-tab.png)
+
 ## Notes
 
 - Pro-gated audio features depend on active RevenueCat entitlement mapping.
