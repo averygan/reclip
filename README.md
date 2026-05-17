@@ -1,89 +1,85 @@
-# RECLIP ✨
+# ReClip ✨
 
-> Neon-fast, local-first media downloads for Android.  
-> Built for a clean, powerful flow: paste ➜ fetch ➜ pick quality ➜ download.
+Neon-styled, local-first media downloading for Android.
 
-![ReClip home UI](docs/screenshots/reclip-home.png)
+ReClip fetches media metadata and runs downloads on-device (yt-dlp + FFmpeg), with a clean share-to-download flow and Pro audio controls.
 
-## 🚀 What ReClip Does
+## Why ReClip 🚀
 
-- 🎬 Download video in source-available resolutions
-- 🎵 Download audio with Pro processing profiles
-- 🔗 Handle app-to-app sharing (Spotify + YouTube-family links)
-- 📊 Show live progress + runtime diagnostics
-- 📁 Save everything to `Downloads/ReClip`
+- On-device pipeline: no external conversion servers
+- Fast URL/share handling with streamlined fetch UX
+- Unified quality controls for video and audio workflows
+- Runtime diagnostics and download history built in
+- RevenueCat Pro gating for premium audio extraction
 
-## 💡 Why ReClip
+## Core Capabilities 🎯
 
-- 🛡️ Local-first processing for privacy and reliability
-- ⚡ Fast share-to-download workflow
-- 🎛️ Clear quality controls for video and Pro audio
-- 💳 Native Android billing + entitlement flow with RevenueCat
-
-## 🧠 Current Highlights (Codex Branch)
-
-- Paste-to-fetch UX:
-  - URL paste can auto-fetch
-  - URL box collapses after successful fetch
-  - Fetch button hides after successful fetch
-- Single video quality control point:
-  - Top 4 highest video quality options shown in the collapsed input area
-  - Video quality buttons visually match audio profile buttons
-  - Video quality preference persists per device
-- Pro audio profiles:
+- Video downloads with source-based quality options
+- Audio downloads with selectable Pro profiles:
   - `mp3_320_cbr`
   - `mp3_v0_vbr`
   - `mp3_256_cbr`
   - `flac_lossless`
-- Persistent audio profile preference (per-device)
-- Runtime Status panel includes:
-  - yt-dlp version
-  - FFmpeg availability/path
-  - MP3 encoder support
-  - Active audio profile
-  - Supported audio profile summary
-- Pro-aware share routing:
-  - Spotify links auto-route to Audio
-  - `music.youtube.com`, `m.youtube.com`, and `youtu.be` auto-route to Audio for Pro users
-- Stale fetch safety:
-  - In-flight fetch responses are ignored after clearing URLs
+- Persistent per-device quality preferences
+- Share routing:
+  - Spotify links route to Audio
+  - `music.youtube.com`, `m.youtube.com`, `youtu.be` route to Audio for Pro users
+- Downloads saved to `Downloads/ReClip`
 
-## 🖼️ UI Screens
+## Product Walkthrough (UI) 📱
 
-### Video Quality Picker
-![ReClip video quality picker](docs/screenshots/reclip-video-quality-focal.png)
+### 1) Home screen (ready state)
+![Home - idle](docs/screenshots/engagements/01-home-idle.png)
 
-### Audio Quality Picker
-![ReClip audio quality picker](docs/screenshots/reclip-audio-quality-focal.png)
+### 2) Fetch in progress
+![Fetch in progress](docs/screenshots/engagements/02-fetching.png)
 
-### Runtime Stats Panel
-![ReClip runtime stats](docs/screenshots/reclip-runtime-stats-focal.png)
+### 3) Video mode with collapsed input + quality picker
+![Video quality and result](docs/screenshots/engagements/03-video-quality-and-result.png)
 
-## 🛠️ Build Requirements
+### 4) Audio mode with Pro profile picker
+![Audio profiles and results](docs/screenshots/engagements/04-audio-profiles-results.png)
+
+### 5) Batch audio actions
+![Audio batch download](docs/screenshots/engagements/05-audio-batch-download.png)
+
+### 6) Download progress state
+![Download progress](docs/screenshots/engagements/06-download-progress.png)
+
+### 7) Download complete actions (open/share)
+![Download complete actions](docs/screenshots/engagements/07-download-complete-actions.png)
+
+### 8) Runtime status panel
+![Runtime status](docs/screenshots/engagements/08-runtime-status.png)
+
+### 9) Downloads history sheet
+![Downloads sheet](docs/screenshots/engagements/09-downloads-sheet.png)
+
+## Build Requirements 🛠️
 
 - JDK 21
 - Android SDK + Build Tools
 - Gradle wrapper (included)
 
-## ▶️ Build & Install
+## Build & Install ▶️
 
 ```powershell
 .\gradlew.bat :app:assembleDebug
 .\gradlew.bat :app:installDebug
 ```
 
-## 🔐 Notes
+## Notes 🔐
 
 - Pro audio features depend on active RevenueCat entitlement mapping.
 - Spotify support requires build-time credentials:
   - `SPOTIFY_CLIENT_ID`
   - `SPOTIFY_CLIENT_SECRET`
 
-## 🌿 Branch / CI
+## Branch / CI 🌿
 
 - Active branch target: `Codex`
 - GitHub Actions workflow publishes APK artifacts on successful runs
 
-## 📄 License
+## License 📄
 
 MIT
