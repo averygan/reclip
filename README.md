@@ -1,85 +1,14 @@
-# ReClip ✨
+# ReClip Local Media Engine
 
-Neon-styled, local-first media downloading for Android.
+This README is generated from the pages of `ReClip_Local_Media_Engine.pdf` for the Codex branch.
 
-ReClip fetches media metadata and runs downloads on-device (yt-dlp + FFmpeg), with a clean share-to-download flow and Pro audio controls.
-
-## Why ReClip 🚀
-
-- On-device pipeline: no external conversion servers
-- Fast URL/share handling with streamlined fetch UX
-- Unified quality controls for video and audio workflows
-- Runtime diagnostics and download history built in
-- RevenueCat Pro gating for premium audio extraction
-
-## Core Capabilities 🎯
-
-- Video downloads with source-based quality options
-- Audio downloads with selectable Pro profiles:
-  - `mp3_320_cbr`
-  - `mp3_v0_vbr`
-  - `mp3_256_cbr`
-  - `flac_lossless`
-- Persistent per-device quality preferences
-- Share routing:
-  - Spotify links route to Audio
-  - `music.youtube.com`, `m.youtube.com`, `youtu.be` route to Audio for Pro users
-- Downloads saved to `Downloads/ReClip`
-
-## Product Walkthrough (UI) 📱
-
-### 1) Home screen (ready state)
-![Home - idle](docs/screenshots/engagements/01-home-idle.png)
-
-### 2) Fetch in progress
-![Fetch in progress](docs/screenshots/engagements/02-fetching.png)
-
-### 3) Video mode with collapsed input + quality picker
-![Video quality and result](docs/screenshots/engagements/03-video-quality-and-result.png)
-
-### 4) Audio mode with Pro profile picker
-![Audio profiles and results](docs/screenshots/engagements/04-audio-profiles-results.png)
-
-### 5) Batch audio actions
-![Audio batch download](docs/screenshots/engagements/05-audio-batch-download.png)
-
-### 6) Download progress state
-![Download progress](docs/screenshots/engagements/06-download-progress.png)
-
-### 7) Download complete actions (open/share)
-![Download complete actions](docs/screenshots/engagements/07-download-complete-actions.png)
-
-### 8) Runtime status panel
-![Runtime status](docs/screenshots/engagements/08-runtime-status.png)
-
-### 9) Downloads history sheet
-![Downloads sheet](docs/screenshots/engagements/09-downloads-sheet.png)
-
-## Build Requirements 🛠️
-
-- JDK 21
-- Android SDK + Build Tools
-- Gradle wrapper (included)
-
-## Build & Install ▶️
-
-```powershell
-.\gradlew.bat :app:assembleDebug
-.\gradlew.bat :app:installDebug
-```
-
-## Notes 🔐
-
-- Pro audio features depend on active RevenueCat entitlement mapping.
-- Spotify support requires build-time credentials:
-  - `SPOTIFY_CLIENT_ID`
-  - `SPOTIFY_CLIENT_SECRET`
-
-## Branch / CI 🌿
-
-- Active branch target: `Codex`
-- GitHub Actions workflow publishes APK artifacts on successful runs
-
-## License 📄
-
-MIT
+<p align="center"><img src="docs/screenshots/pdf-readme/page-01.jpg" width="900" alt="ReClip PDF page 1" /></p>
+<p align="center"><img src="docs/screenshots/pdf-readme/page-02.jpg" width="900" alt="ReClip PDF page 2" /></p>
+<p align="center"><img src="docs/screenshots/pdf-readme/page-03.jpg" width="900" alt="ReClip PDF page 3" /></p>
+<p align="center"><img src="docs/screenshots/pdf-readme/page-04.jpg" width="900" alt="ReClip PDF page 4" /></p>
+<p align="center"><img src="docs/screenshots/pdf-readme/page-05.jpg" width="900" alt="ReClip PDF page 5" /></p>
+<p align="center"><img src="docs/screenshots/pdf-readme/page-06.jpg" width="900" alt="ReClip PDF page 6" /></p>
+<p align="center"><img src="docs/screenshots/pdf-readme/page-07.jpg" width="900" alt="ReClip PDF page 7" /></p>
+<p align="center"><img src="docs/screenshots/pdf-readme/page-08.jpg" width="900" alt="ReClip PDF page 8" /></p>
+<p align="center"><img src="docs/screenshots/pdf-readme/page-09.jpg" width="900" alt="ReClip PDF page 9" /></p>
+<p align="center"><img src="docs/screenshots/pdf-readme/page-10.jpg" width="900" alt="ReClip PDF page 10" /></p>
