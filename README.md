@@ -1,88 +1,89 @@
-# ReClip (Codex Branch)
+# RECLIP ✨
 
-ReClip is an Android app for on-device media downloading.  
-It fetches metadata and downloads video/audio locally using yt-dlp + FFmpeg, without relying on external conversion servers.
+> Neon-fast, local-first media downloads for Android.  
+> Built for a clean, powerful flow: paste ➜ fetch ➜ pick quality ➜ download.
 
-## What ReClip does
+![ReClip home UI](docs/screenshots/reclip-home.png)
 
-- Download video in source-available resolutions
-- Download audio with Pro processing profiles
-- Handle app-to-app share links (including Spotify and YouTube-family links)
-- Show download progress and runtime diagnostics
-- Save media to `Downloads/ReClip`
+## 🚀 What ReClip Does
 
-## Why ReClip is useful
+- 🎬 Download video in source-available resolutions
+- 🎵 Download audio with Pro processing profiles
+- 🔗 Handle app-to-app sharing (Spotify + YouTube-family links)
+- 📊 Show live progress + runtime diagnostics
+- 📁 Save everything to `Downloads/ReClip`
 
-- Local-first processing (privacy and reliability)
-- No dependency on third-party downloader websites
-- Fast share-to-download flow
-- Clear quality controls for both video and Pro audio
-- Native Android billing and entitlement handling with RevenueCat
+## 💡 Why ReClip
 
-## Current key features (Codex)
+- 🛡️ Local-first processing for privacy and reliability
+- ⚡ Fast share-to-download workflow
+- 🎛️ Clear quality controls for video and Pro audio
+- 💳 Native Android billing + entitlement flow with RevenueCat
 
-- Streamlined fetch flow:
+## 🧠 Current Highlights (Codex Branch)
+
+- Paste-to-fetch UX:
   - URL paste can auto-fetch
   - URL box collapses after successful fetch
   - Fetch button hides after successful fetch
-- Single video quality entry point (no duplicate selectors):
-  - top 4 highest video qualities shown in the collapsed input area
-  - video quality buttons styled identically to audio profile buttons
-  - selected video quality remains persistent per device
-- Persistent video quality preference (per-device, local storage)
-- Pro audio processing profiles:
+- Single video quality control point:
+  - Top 4 highest video quality options shown in the collapsed input area
+  - Video quality buttons visually match audio profile buttons
+  - Video quality preference persists per device
+- Pro audio profiles:
   - `mp3_320_cbr`
   - `mp3_v0_vbr`
   - `mp3_256_cbr`
   - `flac_lossless`
-- Persistent audio profile preference (per-device, local storage)
+- Persistent audio profile preference (per-device)
 - Runtime Status panel includes:
   - yt-dlp version
   - FFmpeg availability/path
   - MP3 encoder support
-  - active audio profile
-  - supported audio profile summary
+  - Active audio profile
+  - Supported audio profile summary
 - Pro-aware share routing:
   - Spotify links auto-route to Audio
   - `music.youtube.com`, `m.youtube.com`, and `youtu.be` auto-route to Audio for Pro users
-- Clear/refresh safety:
-  - stale in-flight fetch responses are ignored after clearing URLs
+- Stale fetch safety:
+  - In-flight fetch responses are ignored after clearing URLs
 
-## Build requirements
+## 🖼️ UI Screens
+
+### Video Quality Picker
+![ReClip video quality picker](docs/screenshots/reclip-video-quality-focal.png)
+
+### Audio Quality Picker
+![ReClip audio quality picker](docs/screenshots/reclip-audio-quality-focal.png)
+
+### Runtime Stats Panel
+![ReClip runtime stats](docs/screenshots/reclip-runtime-stats-focal.png)
+
+## 🛠️ Build Requirements
 
 - JDK 21
-- Android SDK/Build Tools
-- Gradle wrapper in repo
+- Android SDK + Build Tools
+- Gradle wrapper (included)
 
-## Build and install
+## ▶️ Build & Install
 
 ```powershell
 .\gradlew.bat :app:assembleDebug
 .\gradlew.bat :app:installDebug
 ```
 
-## UI screenshots
+## 🔐 Notes
 
-### Home / video flow
-
-![ReClip home UI](docs/screenshots/reclip-home.png)
-
-### Audio tab
-
-![ReClip audio tab UI](docs/screenshots/reclip-audio-tab.png)
-
-## Notes
-
-- Pro-gated audio features depend on active RevenueCat entitlement mapping.
+- Pro audio features depend on active RevenueCat entitlement mapping.
 - Spotify support requires build-time credentials:
   - `SPOTIFY_CLIENT_ID`
   - `SPOTIFY_CLIENT_SECRET`
 
-## Branch and CI
+## 🌿 Branch / CI
 
 - Active branch target: `Codex`
-- GitHub Actions build workflow publishes APK artifacts for successful runs.
+- GitHub Actions workflow publishes APK artifacts on successful runs
 
-## License
+## 📄 License
 
 MIT
