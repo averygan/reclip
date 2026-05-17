@@ -760,6 +760,22 @@
   .audio-profile-pill.active .ap-name { color: white; }
   .audio-profile-pill.active .ap-desc { color: rgba(255,255,255,0.6); }
 
+  .video-quick-picker {
+    display: none;
+    padding: 12px 12px 8px;
+    border-top: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+    animation: fade-up 0.28s ease both;
+  }
+  .video-quick-picker .quality-picker-label {
+    margin-bottom: 8px;
+  }
+  .video-quick-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
   /* ─── Input ─── */
   .input-card {
     background: var(--surface);
@@ -771,6 +787,15 @@
     animation: hero-rise 1s var(--ease) 0.5s both;
     position: relative;
   }
+  .input-card.collapsed .url-field {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+    transform: translateY(-8px);
+    pointer-events: none;
+  }
+  .input-card.collapsed .clear-btn { display: none !important; }
   .input-card.focused {
     border-color: var(--coral);
     box-shadow: 0 0 0 4px var(--coral-glow), 0 20px 60px rgba(231,24,133,0.2);
@@ -791,6 +816,11 @@
   .url-field {
     position: relative;
     padding: 18px 18px;
+    max-height: 180px;
+    opacity: 1;
+    transform: translateY(0);
+    transition: max-height 0.35s var(--ease), padding 0.35s var(--ease), opacity 0.25s ease, transform 0.25s ease;
+    overflow: hidden;
   }
   .url-input {
     width: 100%;
@@ -837,6 +867,35 @@
     border-top: 1px solid var(--border);
     background: rgba(0,0,0,0.15);
   }
+  .input-actions.fetch-hidden #fetchBtn {
+    display: none;
+  }
+  .input-summary {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border-top: 1px solid var(--border);
+    background: rgba(255,255,255,0.03);
+    animation: fade-up 0.28s ease both;
+  }
+  .input-card.collapsed .input-summary { display: flex; }
+  .input-summary-text {
+    font-size: 12px;
+    color: var(--text-mute);
+  }
+  .input-summary-btn {
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.06);
+    color: var(--text-soft);
+    border-radius: 10px;
+    padding: 7px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .input-summary-btn:active { transform: translateY(1px); }
   .action-btn {
     flex: 1;
     padding: 16px 14px;
@@ -985,11 +1044,13 @@
     font-weight: 500;
   }
 
-  .quality-pills {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    margin-bottom: 12px;
+  .quality-picker-label {
+    font-size: 10px;
+    font-family: var(--mono);
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 7px;
   }
   .dl-thumb-img {
     position: absolute;
@@ -998,44 +1059,6 @@
     height: 100%;
     object-fit: cover;
   }
-  .pill {
-    min-height: 48px;
-    padding: 10px 12px;
-    border-radius: 12px;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid var(--border);
-    color: var(--text-mute);
-    font-family: var(--sans);
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 1.2;
-    cursor: pointer;
-    transition: all 0.25s var(--ease);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-start;
-    text-align: left;
-  }
-  .pill .pill-label {
-    color: var(--text-soft);
-    letter-spacing: 0;
-  }
-  .pill .pill-meta {
-    margin-top: 2px;
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--text-mute);
-  }
-  .pill:active { transform: scale(0.98); }
-  .pill.active {
-    background: linear-gradient(135deg, rgba(231,24,133,0.24), rgba(161,58,240,0.2));
-    border-color: rgba(231,24,133,0.45);
-    box-shadow: 0 6px 18px rgba(231,24,133,0.22);
-  }
-  .pill.active .pill-label { color: #fff; }
-  .pill.active .pill-meta { color: rgba(255,255,255,0.76); }
-
   /* Download Button */
   .dl-btn {
     width: 100%;
@@ -1646,6 +1669,7 @@
             rows="2"
             onfocus="document.getElementById('inputCard').classList.add('focused')"
             onblur="document.getElementById('inputCard').classList.remove('focused')"
+            onpaste="handleUrlPasted()"
             oninput="toggleClear()"></textarea>
           <button id="clearBtn" class="clear-btn" onclick="clearInput()">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
@@ -1653,7 +1677,12 @@
             </svg>
           </button>
         </div>
-        <div class="input-actions">
+        <div class="input-summary" id="inputSummary">
+          <span class="input-summary-text" id="inputSummaryText">0 URLs ready</span>
+          <button class="input-summary-btn" onclick="expandUrlInput()">Edit URLs</button>
+        </div>
+        <div id="videoQuickPicker" class="video-quick-picker"></div>
+        <div class="input-actions" id="inputActions">
           <button class="action-btn" onclick="pasteFromClipboard()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
@@ -1763,6 +1792,9 @@
   let results = [];
   let downloadStates = {};
   let lastEngineStatus = null;
+  let isUrlInputCollapsed = false;
+  let hasSuccessfulFetch = false;
+  let activeFetchToken = 0;
   let callbackCounter = 0;
   const callbacks = {};
 
@@ -1870,6 +1902,69 @@
     try { localStorage.setItem(VIDEO_QUALITY_PREF_KEY, normalized); } catch (e) {}
   }
 
+  function getPrimaryVideoFormats() {
+    const firstVideo = results.find(r => !r.audioOnly && Array.isArray(r.formats) && r.formats.length);
+    return firstVideo?.formats || [];
+  }
+
+  function getTopVideoQualityOptions(limit = 4) {
+    const seen = new Set();
+    return getPrimaryVideoFormats()
+      .map(f => ({
+        id: f.id,
+        label: f.label || '',
+        height: Number(f.height || parseHeightFromLabel(f.label)),
+        tbr: f.tbr,
+      }))
+      .filter(f => f.height > 0 && !!f.id && !!f.label)
+      .sort((a, b) => b.height - a.height)
+      .filter(f => {
+        const key = `${f.height}p`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, limit);
+  }
+
+  function renderVideoQuickPicker() {
+    const container = document.getElementById('videoQuickPicker');
+    if (!container) return;
+
+    const shouldShow = hasSuccessfulFetch && isUrlInputCollapsed && currentFormat === 'video';
+    const options = shouldShow ? getTopVideoQualityOptions(4) : [];
+    if (!options.length) {
+      container.style.display = 'none';
+      container.innerHTML = '';
+      return;
+    }
+
+    const selected = getVideoQualityPreference();
+    container.innerHTML = `
+      <div class="quality-picker-label">Video Quality</div>
+      <div class="video-quick-grid">
+        ${options.map(o => {
+          const key = `${o.height}p`;
+          const active = key === selected;
+          const meta = formatBitrateKbps(o.tbr) || 'Source';
+          return `
+            <button class="audio-profile-pill ${active ? 'active' : ''}" onclick="setVideoQuickQuality('${o.label.replace(/'/g, "\\'")}')">
+              <span class="ap-name">${escapeHtml(o.label)}</span>
+              <span class="ap-desc">${escapeHtml(meta)}</span>
+            </button>
+          `;
+        }).join('')}
+      </div>`;
+    container.style.display = 'block';
+  }
+
+  function setVideoQuickQuality(label) {
+    saveVideoQualityPreference(label);
+    renderVideoQuickPicker();
+    renderResults();
+    if (window.navigator.vibrate) navigator.vibrate(5);
+  }
+
   function resolvePreferredQuality(formats) {
     if (!Array.isArray(formats) || !formats.length) return null;
     const preferred = getVideoQualityPreference();
@@ -1950,6 +2045,7 @@
     syncAudioProfilePickerVisibility();
     if (window.navigator.vibrate) navigator.vibrate(10);
     renderResults();
+    renderVideoQuickPicker();
   }
 
   function setAudioProfile(key) {
@@ -1961,14 +2057,73 @@
   function toggleClear() {
     const v = document.getElementById('urlInput').value;
     document.getElementById('clearBtn').classList.toggle('visible', v.length > 0);
+    updateUrlSummary();
+  }
+
+  function handleUrlPasted() {
+    // Wait one tick so the pasted content is in the textarea first.
+    setTimeout(() => {
+      toggleClear();
+      autoFetchIfUrlPresent();
+    }, 20);
+  }
+
+  function autoFetchIfUrlPresent() {
+    const raw = document.getElementById('urlInput').value.trim();
+    if (!raw) return;
+    const btn = document.getElementById('fetchBtn');
+    if (btn && btn.disabled) return;
+    fetchInfo();
+  }
+
+  function syncFetchButtonVisibility() {
+    const actions = document.getElementById('inputActions');
+    if (!actions) return;
+    actions.classList.toggle('fetch-hidden', hasSuccessfulFetch);
   }
 
   function clearInput() {
+    activeFetchToken += 1;
     document.getElementById('urlInput').value = '';
     toggleClear();
+    updateUrlSummary();
     results = [];
     downloadStates = {};
+    hasSuccessfulFetch = false;
+    syncFetchButtonVisibility();
+    const btn = document.getElementById('fetchBtn');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12h14M13 6l6 6-6 6"/>
+      </svg> Fetch`;
+    }
     renderResults();
+    renderVideoQuickPicker();
+  }
+
+  function updateUrlSummary() {
+    const raw = document.getElementById('urlInput').value.trim();
+    const count = raw ? raw.split('\n').map(u => u.trim()).filter(Boolean).length : 0;
+    document.getElementById('inputSummaryText').textContent = count === 1 ? '1 URL ready' : `${count} URLs ready`;
+  }
+
+  function collapseUrlInput() {
+    if (isUrlInputCollapsed) return;
+    isUrlInputCollapsed = true;
+    updateUrlSummary();
+    document.getElementById('inputCard').classList.add('collapsed');
+    renderVideoQuickPicker();
+  }
+
+  function expandUrlInput() {
+    if (!isUrlInputCollapsed) return;
+    isUrlInputCollapsed = false;
+    document.getElementById('inputCard').classList.remove('collapsed');
+    renderVideoQuickPicker();
+    const input = document.getElementById('urlInput');
+    setTimeout(() => input.focus(), 80);
   }
 
   async function pasteFromClipboard() {
@@ -1980,9 +2135,12 @@
     }
     if (text) {
       const inp = document.getElementById('urlInput');
+      if (isUrlInputCollapsed) expandUrlInput();
       inp.value = inp.value ? inp.value + '\n' + text : text;
       toggleClear();
+      updateUrlSummary();
       showToast('Pasted from clipboard');
+      autoFetchIfUrlPresent();
     } else {
       showToast('Nothing to paste', true);
     }
@@ -1997,29 +2155,37 @@
     const btn = document.getElementById('fetchBtn');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Fetching';
+    const fetchToken = ++activeFetchToken;
 
     results = [];
     downloadStates = {};
+    hasSuccessfulFetch = false;
     renderSkeletons(urls.length);
+    updateUrlSummary();
 
+    let fetchedCount = 0;
     for (const url of urls) {
       const data = await nativeCall('fetchInfo', [url]);
+      if (fetchToken !== activeFetchToken) return;
       if (data.success) {
         if (Array.isArray(data.items) && data.items.length) {
           data.items.forEach(item => {
             item.url = item.url || item.spotifyUrl || url;
             item.source = item.source || data.source || 'spotify';
             results.push(item);
+            fetchedCount += 1;
           });
         } else {
           data.url = data.url || url;
           results.push(data);
+          fetchedCount += 1;
         }
       } else {
         showToast(data.error || 'Failed to fetch', true);
       }
     }
 
+    if (fetchToken !== activeFetchToken) return;
     btn.disabled = false;
     btn.innerHTML = `
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -2027,6 +2193,10 @@
       </svg> Fetch`;
 
     renderResults();
+    hasSuccessfulFetch = fetchedCount > 0;
+    syncFetchButtonVisibility();
+    if (hasSuccessfulFetch) collapseUrlInput();
+    else renderVideoQuickPicker();
   }
 
   // ─── Download ───
@@ -2103,9 +2273,7 @@
     results.forEach((item, i) => {
       const state = downloadStates[item.url];
       if (!state || state.status !== 'done') {
-        const card = document.getElementById('card-' + i);
-        const activePill = card?.querySelector('.pill.active');
-        const qId = activePill?.dataset.id || (item.formats?.[0]?.id || '');
+        const qId = getSelectedVideoQualityId(item);
         downloadItem(i, qId);
       }
     });
@@ -2494,25 +2662,6 @@
             <div class="card-title">${escapeHtml(item.title || 'Untitled')}</div>
             ${metaLine ? `<div class="card-uploader">${escapeHtml(metaLine)}</div>` : ''}
 
-            ${!isAudioOnly && currentFormat === 'video' && item.formats?.length ? `
-              <div class="quality-pills">
-                ${(() => {
-                  const preferred = resolvePreferredQuality(item.formats);
-                  const selectedId = preferred?.id || item.formats[0]?.id || '';
-                  return item.formats.map((f) => {
-                    const isActive = f.id === selectedId;
-                    const meta = formatBitrateKbps(f.tbr) || 'Source';
-                    return `
-                  <button class="pill ${isActive ? 'active' : ''}" data-id="${f.id}" data-label="${f.label || ''}"
-                    onclick="selectQuality(this, ${i})">
-                    <span class="pill-label">${f.label || 'Quality'}</span>
-                    <span class="pill-meta">${meta}</span>
-                  </button>`;
-                  }).join('');
-                })()}
-              </div>
-            ` : ''}
-
             <button class="dl-btn ${isDown ? 'busy' : ''} ${isDone ? 'done' : ''}"
               onclick="onDownloadClick(${i})" ${isDown ? 'disabled' : ''}>
               ${isDown ? `<div class="dl-progress" id="prog-${i}" style="width:${state.progress||0}%"></div>` : ''}
@@ -2580,20 +2729,18 @@
     html += '<div style="height: 14px;"></div>';
 
     c.innerHTML = html;
+    renderVideoQuickPicker();
   }
 
-  function selectQuality(btn, cardIndex) {
-    const card = document.getElementById('card-' + cardIndex);
-    card.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
-    saveVideoQualityPreference(btn.dataset.label || '');
-    if (window.navigator.vibrate) navigator.vibrate(5);
+  function getSelectedVideoQualityId(item) {
+    if (!item || !Array.isArray(item.formats) || !item.formats.length) return '';
+    const preferred = resolvePreferredQuality(item.formats);
+    return preferred?.id || item.formats[0]?.id || '';
   }
 
   function onDownloadClick(index) {
-    const card = document.getElementById('card-' + index);
-    const activePill = card?.querySelector('.pill.active');
-    const qId = activePill?.dataset.id || '';
+    const item = results[index];
+    const qId = getSelectedVideoQualityId(item);
     downloadItem(index, qId);
   }
 
