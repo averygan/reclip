@@ -42,7 +42,11 @@ def run_download(job_id, url, format_choice, format_id):
     else:
         cmd += ["-f", "bestvideo+bestaudio/best", "--merge-output-format", "mp4"]
 
-    cmd.append(url)
+    # "--" tells yt-dlp's argument parser that everything after it is a
+    # positional URL, never an option, even if it starts with "-". Without
+    # this, a url value like "--exec=..." or "--batch-file=/etc/passwd" is
+    # parsed as a yt-dlp flag instead of being rejected as an invalid URL.
+    cmd += ["--", url]
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
@@ -101,7 +105,10 @@ def get_info():
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
-    cmd = ["yt-dlp", "--no-playlist", "-j", url]
+    # "--" stops option parsing so a url value starting with "-" (e.g.
+    # "--exec=..." or "--batch-file=/etc/passwd") is treated as a literal
+    # (invalid) URL instead of a yt-dlp flag.
+    cmd = ["yt-dlp", "--no-playlist", "-j", "--", url]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         if result.returncode != 0:
@@ -147,7 +154,8 @@ def get_playlist_info():
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
-    cmd = ["yt-dlp", "--flat-playlist", "-J", url]
+    # See the matching comment in get_info() above.
+    cmd = ["yt-dlp", "--flat-playlist", "-J", "--", url]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         if result.returncode != 0:
