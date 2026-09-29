@@ -8,3 +8,5 @@ assets/*.mov
 .env.local
 .env.production
 .env.development
+# credentials — never commit cookies (any *.txt with "cookies" in the name)
+*cookies*.txt

@@ -7,6 +7,13 @@ services:
       - "8899:8899"
     volumes:
       - reclip-downloads:/app/downloads
+      # For login-required videos (Bilibili premium / charging-exclusive):
+      # export your browser cookies as Netscape cookies.txt, put it next to
+      # this file, uncomment the mount below and set RECLIP_COOKIES_FILE.
+      # - ./cookies.txt:/app/cookies.txt:ro
+    # environment:
+    #   RECLIP_COOKIES_FILE: /app/cookies.txt
+    #   RECLIP_DOWNLOAD_TIMEOUT: "1800"
     restart: unless-stopped
 
 volumes:
