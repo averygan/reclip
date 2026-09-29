@@ -48,7 +48,7 @@
       padding: 60px 24px 80px;
     }
 
-    .brand { margin-bottom: 48px; }
+    .brand { margin-bottom: 48px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
     .brand h1 {
       font-family: 'Instrument Serif', serif;
       font-size: 4.2rem;
@@ -261,6 +261,12 @@
     .card-dl-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .card-dl-btn.done { background: var(--success); color: #fff; }
     .card-dl-btn.error { background: var(--error); color: #fff; }
+    .card-dl-btn.cancel {
+      background: transparent;
+      color: var(--error);
+      border: 1.5px solid rgba(196, 61, 61, 0.35);
+    }
+    .card-dl-btn.cancel:hover { background: rgba(196, 61, 61, 0.08); }
 
     .card-status {
       font-size: 0.68rem;
@@ -269,6 +275,112 @@
     .card-status.downloading { color: var(--accent); }
     .card-status.done { color: var(--success); }
     .card-status.error { color: var(--error); }
+
+    /* Download progress */
+    .progress-wrap { flex: 1; min-width: 160px; margin-top: 2px; }
+    .progress-bar {
+      height: 6px;
+      border-radius: 3px;
+      background: var(--card-border);
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 3px;
+      transition: width 0.6s ease;
+    }
+    .progress-fill.indet {
+      width: 100% !important;
+      background: linear-gradient(90deg, transparent 0%, var(--accent) 50%, transparent 100%);
+      background-size: 200% 100%;
+      animation: indet 1.2s linear infinite;
+    }
+    @keyframes indet { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+    .progress-meta {
+      font-size: 0.66rem;
+      color: var(--muted);
+      margin-top: 6px;
+      letter-spacing: 0.02em;
+    }
+
+    /* Cookies settings */
+    .cookies-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 13px;
+      border: 1.5px solid var(--card-border);
+      border-radius: 9px;
+      background: var(--card);
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .cookies-btn:hover { color: var(--fg); border-color: var(--muted); }
+    .ck-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); opacity: 0.5; }
+    .ck-dot.on { background: var(--success); opacity: 1; }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(58, 58, 56, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 50;
+    }
+    .modal {
+      width: 100%;
+      max-width: 520px;
+      background: var(--card);
+      border: 1.5px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 22px;
+      box-shadow: 0 20px 60px rgba(58, 58, 56, 0.18);
+    }
+    .modal-title { font-family: 'Instrument Serif', serif; font-size: 1.35rem; margin-bottom: 8px; }
+    .modal-desc { font-size: 0.72rem; color: var(--muted); line-height: 1.6; margin-bottom: 14px; }
+    .modal-desc code { color: var(--fg); background: rgba(26,26,24,0.05); padding: 1px 5px; border-radius: 4px; }
+    .ck-row { display: flex; gap: 10px; align-items: center; margin-bottom: 4px; }
+    .ck-row label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+    .ck-row input {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1.5px solid var(--card-border);
+      border-radius: 8px;
+      background: var(--card);
+      color: var(--fg);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      outline: none;
+    }
+    .ck-row input:focus { border-color: var(--accent); }
+    .modal-actions { display: flex; gap: 8px; margin-top: 12px; }
+    .modal-btn {
+      padding: 9px 16px;
+      border: 1.5px solid var(--card-border);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--fg);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      transition: all 0.2s;
+    }
+    .modal-btn:hover { border-color: var(--muted); }
+    .modal-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .modal-btn.primary:hover { background: var(--accent-hover); }
+    .modal-btn.ghost { border-color: transparent; color: var(--muted); }
+    .modal-status { font-size: 0.7rem; color: var(--muted); margin-top: 12px; min-height: 1em; }
 
     .q-chip {
       padding: 4px 10px;
@@ -383,8 +495,13 @@
 <body>
   <div class="page">
     <div class="brand">
-      <h1>Re<em>Clip</em></h1>
-      <p>Free media downloader</p>
+      <div>
+        <h1>Re<em>Clip</em></h1>
+        <p>Free media downloader</p>
+      </div>
+      <button class="cookies-btn" onclick="openCookies()">
+        Cookies <span class="ck-dot" id="ckDot"></span>
+      </button>
     </div>
 
     <textarea id="urls" placeholder="Paste one or more URLs..." rows="2"></textarea>
@@ -404,6 +521,30 @@
       YouTube &middot; TikTok &middot; Instagram &middot; Twitter/X &middot; Reddit &middot; Facebook<br>
       Vimeo &middot; Twitch &middot; Dailymotion &middot; SoundCloud &middot; Loom &middot; Streamable<br>
       Pinterest &middot; Tumblr &middot; Threads &middot; LinkedIn &middot; 1000+ more
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="cookiesModal" style="display:none" onclick="if(event.target===this)closeCookies()">
+    <div class="modal">
+      <div class="modal-title">Login cookies</div>
+      <p class="modal-desc">
+        Needed for login-required videos (premium / charging-exclusive). Paste a Netscape
+        <code>cookies.txt</code> (exported with a "Get cookies.txt" extension) or a browser
+        Cookie header string like <code>SESSDATA=xxx; bili_jct=yyy</code>.
+        Stored locally in <code>cookies.txt</code> — gitignored, never sent anywhere but the sites you download from.
+      </p>
+      <textarea id="ckContent" rows="5" placeholder="# Netscape HTTP Cookie File&#10;...or: SESSDATA=xxx; bili_jct=yyy"></textarea>
+      <div class="ck-row">
+        <label>Domain</label>
+        <input id="ckDomain" value=".bilibili.com" placeholder=".bilibili.com">
+      </div>
+      <p class="modal-desc" style="margin:6px 0 0">Domain is only used when pasting a Cookie header string.</p>
+      <div class="modal-actions">
+        <button class="modal-btn primary" onclick="saveCookies()">Save</button>
+        <button class="modal-btn" onclick="clearCookies()">Clear</button>
+        <button class="modal-btn ghost" onclick="closeCookies()">Close</button>
+      </div>
+      <div class="modal-status" id="ckStatus"></div>
     </div>
   </div>
 
@@ -445,6 +586,62 @@
       if (err.includes('timed out') || err.includes('Timed out')) return 'Request timed out — try again';
       if (err.includes('network') || err.includes('Network')) return 'Network error — check your connection';
       return err.length > 80 ? err.slice(0, 80) + '...' : err;
+    }
+
+    function fmtBytes(n) {
+      if (n == null) return '';
+      const u = ['B', 'KB', 'MB', 'GB', 'TB'];
+      let i = 0;
+      while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+      return `${n.toFixed(n >= 100 || i === 0 ? 0 : 1)}${u[i]}`;
+    }
+
+    function fmtSpeed(bps) { return bps == null ? '' : fmtBytes(bps) + '/s'; }
+
+    function fmtEta(sec) {
+      if (sec == null) return '';
+      sec = Math.round(sec);
+      const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+      return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+               : `${m}:${String(s).padStart(2, '0')}`;
+    }
+
+    function progressText(p) {
+      if (!p) return 'Starting...';
+      if (p.phase === 'merging') return 'Merging video & audio...';
+      if (p.phase === 'processing') return 'Processing...';
+      const bits = [];
+      if (p.stage > 1) bits.push('Part ' + p.stage);
+      if (p.percent != null) bits.push(p.percent.toFixed(1) + '%');
+      if (p.downloaded_bytes != null && p.total_bytes != null) {
+        bits.push(`${fmtBytes(p.downloaded_bytes)} / ${fmtBytes(p.total_bytes)}`);
+      }
+      if (p.speed != null) bits.push(fmtSpeed(p.speed));
+      if (p.eta != null) bits.push('ETA ' + fmtEta(p.eta));
+      return bits.join(' · ') || 'Downloading...';
+    }
+
+    function progressHtml(idx) {
+      const p = cardData[idx].progress || {};
+      const pct = p.percent != null ? Math.min(100, p.percent) : null;
+      return `
+        <div class="progress-wrap" id="prog-${idx}">
+          <div class="progress-bar">
+            <div class="progress-fill${pct == null ? ' indet' : ''}" id="prog-fill-${idx}" style="width:${pct == null ? 100 : pct}%"></div>
+          </div>
+          <div class="progress-meta" id="prog-meta-${idx}"><span class="spin"></span> ${esc(progressText(p))}</div>
+        </div>`;
+    }
+
+    function updateProgress(idx) {
+      const fill = document.getElementById(`prog-fill-${idx}`);
+      const meta = document.getElementById(`prog-meta-${idx}`);
+      if (!fill || !meta) { renderCard(idx); return; }
+      const p = cardData[idx].progress || {};
+      const pct = p.percent != null ? Math.min(100, p.percent) : null;
+      fill.style.width = (pct == null ? 100 : pct) + '%';
+      fill.className = 'progress-fill' + (pct == null ? ' indet' : '');
+      meta.innerHTML = `<span class="spin"></span> ${esc(progressText(p))}`;
     }
 
     document.getElementById('urls').addEventListener('keydown', e => {
@@ -584,7 +781,11 @@
       if (c.status === 'ready') {
         actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">Download</button>${qualityChips}`;
       } else if (c.status === 'downloading') {
-        actionHtml = `<span class="card-status downloading"><span class="spin"></span> Downloading...</span>`;
+        actionHtml = progressHtml(idx) +
+          `<button class="card-dl-btn cancel" id="cancel-${idx}" onclick="cancelCard(${idx})">Cancel</button>`;
+      } else if (c.status === 'cancelled') {
+        actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">Retry</button>
+          <span class="card-status">Cancelled</span>`;
       } else if (c.status === 'done') {
         actionHtml = `<button class="card-dl-btn done" onclick="saveCard(${idx})">Save</button>
           <span class="card-status done">${esc(c.filename || '')}</span>`;
@@ -658,12 +859,19 @@
         try {
           const res = await fetch(`/api/status/${c.jobId}`);
           const data = await res.json();
-          if (data.status === 'done') {
+          if (data.status === 'downloading') {
+            c.progress = data.progress;
+            updateProgress(idx);
+          } else if (data.status === 'done') {
             clearInterval(iv);
             c.status = 'done';
             c.filename = data.filename;
             renderCard(idx);
             saveCard(idx);
+          } else if (data.status === 'cancelled') {
+            clearInterval(iv);
+            c.status = 'cancelled';
+            renderCard(idx);
           } else if (data.status === 'error') {
             clearInterval(iv);
             c.status = 'error';
@@ -677,6 +885,15 @@
           renderCard(idx);
         }
       }, 1000);
+    }
+
+    async function cancelCard(idx) {
+      const c = cardData[idx];
+      const btn = document.getElementById(`cancel-${idx}`);
+      if (btn) { btn.disabled = true; btn.textContent = 'Cancelling...'; }
+      try {
+        await fetch(`/api/download/${c.jobId}`, { method: 'DELETE' });
+      } catch { /* poll loop reports the final state */ }
     }
 
     function saveCard(idx) {
@@ -700,6 +917,62 @@
 
       if (btn) { btn.disabled = false; btn.textContent = 'Download All'; }
     }
+
+    // ---- Cookies settings ----
+    async function loadCookiesStatus() {
+      try {
+        const res = await fetch('/api/cookies');
+        const data = await res.json();
+        const dot = document.getElementById('ckDot');
+        if (dot) dot.className = 'ck-dot' + (data.configured ? ' on' : '');
+        const st = document.getElementById('ckStatus');
+        if (st) {
+          const src = { settings: 'configured in this page', env: 'RECLIP_COOKIES_FILE env', browser: 'browser profile' }[data.source];
+          st.textContent = data.configured ? `Active: ${src}` : 'Not configured — login-required videos will only get previews';
+        }
+      } catch { /* server not reachable yet */ }
+    }
+
+    function openCookies() {
+      document.getElementById('cookiesModal').style.display = 'flex';
+      loadCookiesStatus();
+    }
+
+    function closeCookies() {
+      document.getElementById('cookiesModal').style.display = 'none';
+    }
+
+    async function saveCookies() {
+      const content = document.getElementById('ckContent').value.trim();
+      const st = document.getElementById('ckStatus');
+      if (!content) { st.textContent = 'Paste cookie content first'; return; }
+      st.textContent = 'Saving...';
+      try {
+        const res = await fetch('/api/cookies', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content, domain: document.getElementById('ckDomain').value.trim() }),
+        });
+        const data = await res.json();
+        if (data.error) { st.textContent = data.error; return; }
+        st.textContent = `Saved — ${data.count} cookies. New downloads will use them.`;
+        document.getElementById('ckContent').value = '';
+        loadCookiesStatus();
+      } catch (err) { st.textContent = err.message; }
+    }
+
+    async function clearCookies() {
+      const st = document.getElementById('ckStatus');
+      try {
+        const res = await fetch('/api/cookies', { method: 'DELETE' });
+        const data = await res.json();
+        if (data.error) { st.textContent = data.error; return; }
+        st.textContent = 'Cleared';
+        loadCookiesStatus();
+      } catch (err) { st.textContent = err.message; }
+    }
+
+    loadCookiesStatus();
   </script>
 </body>
 </html>

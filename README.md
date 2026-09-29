@@ -14,6 +14,10 @@ https://github.com/user-attachments/assets/419d3e50-c933-444b-8cab-a9724986ba05
 - Download videos from 1000+ supported sites (via [yt-dlp](https://github.com/yt-dlp/yt-dlp))
 - MP4 video or MP3 audio extraction
 - Quality/resolution picker
+- Live download progress — percent, speed, ETA
+- Cancel running downloads from the UI
+- Parallel fragment downloads for segmented streams (YouTube etc.)
+- Login cookies managed in the UI (for premium / paywalled sites)
 - Bulk downloads — paste multiple URLs at once
 - Automatic URL deduplication
 - Clean, responsive UI — no frameworks, no build step
@@ -43,6 +47,39 @@ docker build -t reclip . && docker run -p 8899:8899 reclip
 3. Click **Fetch** to load video info and thumbnails
 4. Select quality/resolution if available
 5. Click **Download** on individual videos, or **Download All**
+
+## Login-required videos (optional)
+
+Some sites (e.g. Bilibili premium or charging-exclusive videos) only serve
+full-quality streams to a logged-in account that owns access.
+
+**Easiest: configure in the web UI** — click **Cookies** (top right), paste either:
+
+- a Netscape `cookies.txt` (export from your logged-in browser with a
+  "Get cookies.txt" extension), or
+- a browser Cookie header string like `SESSDATA=xxx; bili_jct=yyy`
+  (set the Domain field to match the site)
+
+Saved cookies live in `cookies.txt` (gitignored) and are used for all downloads
+until you clear them.
+
+Alternatively via environment variables:
+
+```bash
+# Netscape cookies.txt
+export RECLIP_COOKIES_FILE=/path/to/cookies.txt
+
+# or read cookies straight from a browser profile
+export RECLIP_COOKIES_BROWSER=firefox
+```
+
+UI-configured cookies take precedence over the env vars. `RECLIP_DOWNLOAD_TIMEOUT`
+(seconds, default 1800) raises the per-download time limit for huge files.
+For Docker, see the commented mounts in `docker-compose.yml`.
+
+**Keep your cookies file private** — it is your login session. It is gitignored
+here; don't copy it anywhere else. Cookies only prove identity: the account
+itself must own the access.
 
 ## Supported Sites
 
