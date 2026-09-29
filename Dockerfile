@@ -1,3 +1,6 @@
+# Deno is the JS runtime yt-dlp needs to solve YouTube challenges.
+FROM denoland/deno:bin AS deno-bin
+
 FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
@@ -6,6 +9,8 @@ ENV PYTHONUNBUFFERED=1 \
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ffmpeg && \
     rm -rf /var/lib/apt/lists/*
+
+COPY --from=deno-bin /deno /usr/local/bin/deno
 
 WORKDIR /app
 

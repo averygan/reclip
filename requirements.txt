@@ -1,2 +1,2 @@
 flask
-yt-dlp
+yt-dlp[default]
