@@ -36,6 +36,22 @@ Or with Docker:
 docker build -t reclip . && docker run -p 8899:8899 reclip
 ```
 
+## Configuration
+
+ReClip is configured with environment variables:
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `PORT` | `8899` | Port the server listens on. |
+| `HOST` | `127.0.0.1` | Address the server binds to. Use `0.0.0.0` to make ReClip reachable from other machines. |
+| `RECLIP_NO_UPDATE` | unset | Set to `1` to skip the yt-dlp update on startup (used by `reclip.sh` and the Docker entrypoint). Useful if you manage yt-dlp yourself or run offline. |
+
+```bash
+HOST=0.0.0.0 PORT=9000 RECLIP_NO_UPDATE=1 ./reclip.sh
+```
+
+> **Docker:** the image starts Gunicorn with a hardcoded `-b 0.0.0.0:8899`, so `PORT` and `HOST` are ignored there. Change the published port with `docker run -p <host-port>:8899` instead. `RECLIP_NO_UPDATE` does work: `docker run -e RECLIP_NO_UPDATE=1 ...`.
+
 ## Usage
 
 1. Paste one or more video URLs into the input box
