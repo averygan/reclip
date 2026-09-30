@@ -23,7 +23,7 @@ function pageWithFetch(fetchResponse) {
     },
     fetch: async url => {
       requests.push(url);
-      return fetchResponse();
+      return fetchResponse(url);
     },
     console,
   });
@@ -52,4 +52,20 @@ test('a playlist API error does not fetch a misleading single video', async () =
     ok: false,
     json: async () => ({ error: 'Playlist is private' }),
   }), /Playlist is private/);
+});
+
+test('successful playlist expansion fetches each video once', async () => {
+  const { context, requests } = pageWithFetch(async url => {
+    if (url === '/api/playlist') {
+      return { ok: true, json: async () => ({ urls: [
+        'https://example.com/watch?v=first',
+        'https://example.com/watch?v=second&list=original',
+      ] }) };
+    }
+    return { ok: true, json: async () => ({ title: 'Video', formats: [] }) };
+  });
+
+  await context.go();
+  assert.deepEqual(requests, ['/api/playlist', '/api/info', '/api/info']);
+  assert.deepEqual(Array.from(vm.runInContext('cardData', context), card => card.status), ['ready', 'ready']);
 });
