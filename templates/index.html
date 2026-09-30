@@ -461,19 +461,27 @@
       btn.textContent = 'Loading...';
       container.innerHTML = '';
       cardData = [];
+      const playlistErrors = new Map();
 
       // Check if youtube playlist URL
       for (let i = 0; i < urls.length; i++) {
         if (urls[i].includes('list=')) {
-          const res = await fetch('/api/playlist', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: urls[i] }),
-          });
-          const data = await res.json();
-          if (data.urls) {
+          const playlistUrl = urls[i];
+          try {
+            const res = await fetch('/api/playlist', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: playlistUrl }),
+            });
+            const data = await res.json();
+            if (!res.ok || !Array.isArray(data.urls) || !data.urls.length) {
+              throw new Error(data.error || 'Could not load playlist');
+            }
             // replace playlist URL with individual video URLs
             urls.splice(i, 1, ...data.urls);
+            i += data.urls.length - 1;
+          } catch (err) {
+            playlistErrors.set(playlistUrl, err.message || 'Could not load playlist');
           }
         }
       }
@@ -481,6 +489,11 @@
       for (let i = 0; i < urls.length; i++) {
         const url = urls[i];
         const idx = cardData.length;
+        if (playlistErrors.has(url)) {
+          cardData.push({ url, status: 'info-error', error: playlistErrors.get(url) });
+          renderCard(idx);
+          continue;
+        }
         cardData.push({ url, status: 'loading' });
         renderCard(idx);
 
