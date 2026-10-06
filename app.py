@@ -29,6 +29,20 @@ def parse_ytdlp_json(stdout):
     raise ValueError("yt-dlp returned no data")
 
 
+def safe_filename(title):
+    """Turn a video title into a safe download filename (without extension).
+
+    Some sites, LinkedIn for one, use the whole post text as the title, so
+    it can contain line breaks. Flask rejects those in the Content-Disposition
+    header, which made /api/file return a 500 even though the download worked.
+    Collapse all whitespace to single spaces and drop control characters along
+    with the characters that are not allowed in filenames.
+    """
+    title = " ".join(title.split())
+    title = "".join(c for c in title if c not in r'\/:*?"<>|' and c.isprintable())
+    return title.strip()[:100].strip()
+
+
 def run_download(job_id, url, format_choice, format_id):
     job = jobs[job_id]
     out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}.%(ext)s")
@@ -75,9 +89,8 @@ def run_download(job_id, url, format_choice, format_id):
         job["file"] = chosen
         ext = os.path.splitext(chosen)[1]
         title = job.get("title", "").strip()
-        # Sanitize title for filename
         if title:
-            safe_title = "".join(c for c in title if c not in r'\/:*?"<>|').strip()[:100].strip()
+            safe_title = safe_filename(title)
             job["filename"] = f"{safe_title}{ext}" if safe_title else os.path.basename(chosen)
         else:
             job["filename"] = os.path.basename(chosen)
