@@ -421,6 +421,18 @@
       return [...new Set(text.split(/[\s,]+/).map(u => u.trim()).filter(u => u.startsWith('http')))];
     }
 
+    function isYouTubePlaylistUrl(link) {
+      try {
+        const url = new URL(link);
+        const youtube = /(^|\.)youtube\.com$/.test(url.hostname);
+        const shortLink = url.hostname === 'youtu.be';
+        return ((youtube || shortLink) && Boolean(url.searchParams.get('list'))) ||
+          (youtube && /^\/show\/[^/]+\/?$/.test(url.pathname));
+      } catch {
+        return false;
+      }
+    }
+
     function fmtDur(s) {
       if (!s) return '';
       const m = Math.floor(s / 60);
@@ -464,7 +476,7 @@
 
       // Check if youtube playlist URL
       for (let i = 0; i < urls.length; i++) {
-        if (urls[i].includes('list=')) {
+        if (isYouTubePlaylistUrl(urls[i])) {
           const res = await fetch('/api/playlist', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
