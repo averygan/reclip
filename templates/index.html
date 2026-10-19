@@ -502,7 +502,8 @@
               duration: data.duration,
               uploader: data.uploader || '',
               formats: data.formats || [],
-              selectedFormatId: data.formats?.[0]?.id || null,
+              // Default to the highest chip QuickTime can play (H.264), not a 4K VP9 one.
+              selectedFormatId: (data.formats?.find(f => f.compatible) || data.formats?.[0])?.id || null,
             };
           }
         } catch (err) {
@@ -576,7 +577,7 @@
       let qualityChips = '';
       if (!isAudio && c.formats && c.formats.length > 1) {
         qualityChips = c.formats.map(f =>
-          `<button class="q-chip${f.id === c.selectedFormatId ? ' active' : ''}" onclick="pickFormat(${idx}, '${f.id}')">${f.label}</button>`
+          `<button class="q-chip${f.id === c.selectedFormatId ? ' active' : ''}"${f.compatible === false ? ' title="May not play in QuickTime. Use VLC or IINA."' : ''} onclick="pickFormat(${idx}, '${f.id}')">${f.label}</button>`
         ).join('');
       }
 

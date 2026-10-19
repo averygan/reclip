@@ -29,6 +29,41 @@ def parse_ytdlp_json(stdout):
     raise ValueError("yt-dlp returned no data")
 
 
+def plays_everywhere(f):
+    """True for H.264 video, or when the codec is unknown (plain MP4 links).
+
+    YouTube's highest-bitrate stream at a height is usually VP9 or AV1,
+    which QuickTime, Preview and iPhone Photos can't play.
+    """
+    vcodec = (f.get("vcodec") or "").lower()
+    return not vcodec or vcodec.startswith(("avc1", "avc3", "h264"))
+
+
+def quality_options(formats):
+    """One chip per height: H.264 if there is one, else the highest bitrate."""
+    best_by_height = {}
+    for f in formats:
+        height = f.get("height")
+        if height and f.get("vcodec", "none") != "none":
+            rank = (plays_everywhere(f), f.get("tbr") or 0)
+            if height not in best_by_height or rank > best_by_height[height][0]:
+                best_by_height[height] = (rank, f)
+
+    options = []
+    for height, (_, f) in best_by_height.items():
+        compatible = plays_everywhere(f)
+        codec = (f.get("vcodec") or "").split(".")[0].upper().replace("AV01", "AV1").replace("VP09", "VP9")
+        options.append({
+            "id": f["format_id"],
+            "label": f"{height}p" if compatible else f"{height}p {codec}",
+            "height": height,
+            "codec": f.get("vcodec") or "",
+            "compatible": compatible,
+        })
+    options.sort(key=lambda x: x["height"], reverse=True)
+    return options
+
+
 def run_download(job_id, url, format_choice, format_id):
     job = jobs[job_id]
     out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}.%(ext)s")
@@ -38,9 +73,15 @@ def run_download(job_id, url, format_choice, format_id):
     if format_choice == "audio":
         cmd += ["-x", "--audio-format", "mp3"]
     elif format_id:
-        cmd += ["-f", f"{format_id}+bestaudio/best", "--merge-output-format", "mp4"]
+        # m4a first: YouTube's "bestaudio" is Opus, which QuickTime can't play in an MP4.
+        # "<id>/" fallback: HLS variants already carry audio, so "+bestaudio" finds
+        # nothing and yt-dlp would drop to "best" (often AV1). Keep the picked format.
+        cmd += [
+            "-f", f"{format_id}+bestaudio[ext=m4a]/{format_id}+bestaudio/{format_id}/best",
+            "--merge-output-format", "mp4",
+        ]
     else:
-        cmd += ["-f", "bestvideo+bestaudio/best", "--merge-output-format", "mp4"]
+        cmd += ["-f", "bestvideo[vcodec^=avc1]+bestaudio[ext=m4a]/bestvideo+bestaudio/best", "--merge-output-format", "mp4"]
 
     cmd.append(url)
 
@@ -109,30 +150,12 @@ def get_info():
 
         info = parse_ytdlp_json(result.stdout)
 
-        # Build quality options — keep best format per resolution
-        best_by_height = {}
-        for f in info.get("formats", []):
-            height = f.get("height")
-            if height and f.get("vcodec", "none") != "none":
-                tbr = f.get("tbr") or 0
-                if height not in best_by_height or tbr > (best_by_height[height].get("tbr") or 0):
-                    best_by_height[height] = f
-
-        formats = []
-        for height, f in best_by_height.items():
-            formats.append({
-                "id": f["format_id"],
-                "label": f"{height}p",
-                "height": height,
-            })
-        formats.sort(key=lambda x: x["height"], reverse=True)
-
         return jsonify({
             "title": info.get("title", ""),
             "thumbnail": info.get("thumbnail", ""),
             "duration": info.get("duration"),
             "uploader": info.get("uploader", ""),
-            "formats": formats,
+            "formats": quality_options(info.get("formats", [])),
         })
     except subprocess.TimeoutExpired:
         return jsonify({"error": "Timed out fetching video info"}), 400
