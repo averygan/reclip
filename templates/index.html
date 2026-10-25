@@ -43,7 +43,7 @@
     }
 
     .page {
-      max-width: 620px;
+      width: 70%;
       margin: 0 auto;
       padding: 60px 24px 80px;
     }
@@ -77,7 +77,7 @@
       font-size: 0.88rem;
       outline: none;
       resize: none;
-      min-height: 56px;
+      min-height: 350px;
       transition: border-color 0.25s, box-shadow 0.25s;
       margin-bottom: 6px;
     }
@@ -582,15 +582,22 @@
 
       let actionHtml = '';
       if (c.status === 'ready') {
-        actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">Download</button>${qualityChips}`;
+        actionHtml = `
+          <button class="card-dl-btn" onclick="dlCard(${idx})">Download</button>
+          ${!isAudio ? `<button class="card-dl-btn" onclick="dlCard(${idx}, true)">Download &amp; Clean</button>` : ''}
+          ${qualityChips}
+        `;
       } else if (c.status === 'downloading') {
         actionHtml = `<span class="card-status downloading"><span class="spin"></span> Downloading...</span>`;
       } else if (c.status === 'done') {
         actionHtml = `<button class="card-dl-btn done" onclick="saveCard(${idx})">Save</button>
           <span class="card-status done">${esc(c.filename || '')}</span>`;
       } else if (c.status === 'error') {
-        actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">Retry</button>
-          <span class="card-status error">${esc(friendlyError(c.error || 'Download failed'))}</span>`;
+        actionHtml = `
+          <button class="card-dl-btn" onclick="dlCard(${idx})">Retry</button>
+          ${!isAudio ? `<button class="card-dl-btn" onclick="dlCard(${idx}, true)">Retry &amp; Clean</button>` : ''}
+          <span class="card-status error">${esc(friendlyError(c.error || 'Download failed'))}</span>
+        `;
       }
 
       el.innerHTML = `
@@ -619,7 +626,7 @@
       renderCard(idx);
     }
 
-    async function dlCard(idx) {
+    async function dlCard(idx, clean = false) {
       const c = cardData[idx];
       c.status = 'downloading';
       c.error = null;
@@ -634,6 +641,7 @@
             format: currentFormat,
             format_id: c.selectedFormatId,
             title: c.title || '',
+            clean: clean,
           }),
         });
         const data = await res.json();

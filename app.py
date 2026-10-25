@@ -4,14 +4,38 @@ import glob
 import json
 import subprocess
 import threading
+from pathlib import Path
 from flask import Flask, request, jsonify, send_file, render_template
 
 app = Flask(__name__)
 DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
+CLEAN_SCRIPT = os.path.join(
+    os.path.dirname(__file__),
+    "..",
+    "VideoCleaner",
+    "clean_single_video.sh",
+)
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 jobs = {}
 
+def clean_video(file_path):
+    """Clean a downloaded MP4 file in place."""
+    temp_output = file_path.with_name(f"{file_path.stem}_cleaning.mp4")
+
+    result = subprocess.run(
+        ["bash", CLEAN_SCRIPT, str(file_path), str(temp_output)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Cleaning failed with code {result.returncode}: {result.stderr}"
+        )
+
+    os.replace(temp_output, file_path)
 
 def parse_ytdlp_json(stdout):
     """Parse yt-dlp JSON output.
@@ -29,7 +53,7 @@ def parse_ytdlp_json(stdout):
     raise ValueError("yt-dlp returned no data")
 
 
-def run_download(job_id, url, format_choice, format_id):
+def run_download(job_id, url, format_choice, format_id, clean=False):
     job = jobs[job_id]
     out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}.%(ext)s")
 
@@ -70,6 +94,9 @@ def run_download(job_id, url, format_choice, format_id):
                     os.remove(f)
                 except OSError:
                     pass
+
+        if clean and chosen.endswith(".mp4"):
+            clean_video(Path(chosen))
 
         job["status"] = "done"
         job["file"] = chosen
@@ -170,6 +197,7 @@ def start_download():
     format_choice = data.get("format", "video")
     format_id = data.get("format_id")
     title = data.get("title", "")
+    clean = bool(data.get("clean", False))
 
     if not url:
         return jsonify({"error": "No URL provided"}), 400
@@ -177,7 +205,7 @@ def start_download():
     job_id = uuid.uuid4().hex[:10]
     jobs[job_id] = {"status": "downloading", "url": url, "title": title}
 
-    thread = threading.Thread(target=run_download, args=(job_id, url, format_choice, format_id))
+    thread = threading.Thread(target=run_download, args=(job_id, url, format_choice, format_id, clean))
     thread.daemon = True
     thread.start()
 
