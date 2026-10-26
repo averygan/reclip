@@ -13,6 +13,8 @@ https://github.com/user-attachments/assets/419d3e50-c933-444b-8cab-a9724986ba05
 
 - 从 1000+ 受支持平台下载视频（基于 [yt-dlp](https://github.com/yt-dlp/yt-dlp)）
 - 提取为 MP4 视频或 MP3 音频
+- MP4 一律 faststart（moov 前置），起播只需一次 Range 请求
+- 可选 H.265 转码（同观感码率约减半，适合弱网/路由器存储回放；源已是 HEVC 时自动只重封装，不做二次编码）
 - 画质 / 分辨率选择器
 - 批量下载——一次粘贴多个链接
 - 自动去除重复 URL
@@ -53,6 +55,7 @@ YouTube、TikTok、Instagram、Twitter/X、Reddit、Facebook、Vimeo、Twitch、
 
 - **右键**任意视频链接、媒体元素或页面 → *ReClip → 用 ReClip 下载*，会打开面板并自动预填 URL、自动抓取信息
 - **工具栏弹窗**——下载当前标签页、切换 MP4/MP3，并可设置服务器地址（默认 `http://127.0.0.1:8899`）
+- 已打开的面板标签页会被复用，且**只复用同源（协议 + 主机 + 端口）的标签页**——同一台机器上 8898 端口的其他应用不会被顶掉
 
 安装方式：打开 `chrome://extensions` → 开启**开发者模式** → **加载已解压的扩展程序** → 选择 `extension/` 目录。
 

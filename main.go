@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"embed"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -39,7 +40,22 @@ var content embed.FS
 const (
 	infoTimeout     = 60 * time.Second
 	downloadTimeout = 5 * time.Minute
+	// postTimeout is the floor for the re-encode pass; the real limit scales
+	// with media length (see postDeadline), because a 2 h 1080p HEVC encode on
+	// x265 medium can legitimately run longer than the download did.
+	postTimeout = 15 * time.Minute
 )
+
+// Video codec policy for the finished file. The router only relays bytes, so
+// the choice is purely about bandwidth vs. player compatibility.
+const (
+	codecCopy = "copy" // remux only: keep the source codec (usually H.264)
+	codecH265 = "h265" // re-encode video to HEVC (hvc1) for ~40-50% less bitrate
+)
+
+// transcodeShare is the fraction of the progress bar the download gets when a
+// re-encode follows; the remaining 15% belongs to the transcode pass.
+const transcodeShare = 0.85
 
 // Preferred playback heights offered as the "default resolution" setting. Keys
 // are the accepted wire values.
@@ -59,6 +75,7 @@ var (
 	ytdlpPath   string
 	ffmpegPath  string
 	resolution  string // preferred height for the auto-selected quality, e.g. "720p"
+	codec       string // video codec policy: copy | h265
 
 	settingsMu sync.RWMutex
 
@@ -136,6 +153,22 @@ func getResolutionHeight() int {
 	return defaultHeights[resolution]
 }
 
+// getCodec returns the configured video codec policy (codecCopy when unset).
+func getCodec() string {
+	settingsMu.RLock()
+	defer settingsMu.RUnlock()
+	if codec == "" {
+		return codecCopy
+	}
+	return codec
+}
+
+// validCodec reports whether s is an accepted codec policy value; "" means
+// "use the configured default".
+func validCodec(s string) bool {
+	return s == "" || s == codecCopy || s == codecH265
+}
+
 // isExecutable reports whether path points to an executable regular file.
 func isExecutable(path string) bool {
 	if path == "" {
@@ -153,12 +186,14 @@ type settings struct {
 	Ytdlp      string `json:"ytdlp"`
 	Ffmpeg     string `json:"ffmpeg"`
 	Resolution string `json:"resolution"`
+	Codec      string `json:"codec"` // copy | h265
 }
 
 type job struct {
 	id       string
 	url      string
 	format   string // video | audio
+	codec    string // copy | h265 — snapshot of the policy for this job
 	status   string // downloading | done | error
 	progress float64
 	title    string
@@ -203,6 +238,9 @@ type downloadRequest struct {
 	Filename string `json:"filename"`
 	Start    string `json:"start"`
 	End      string `json:"end"`
+	// Codec overrides the configured video codec policy for this one download
+	// ("copy" | "h265"); empty means "use the setting".
+	Codec string `json:"codec"`
 	// Duration is the media length in seconds reported by /api/info. It lets
 	// us turn ffmpeg's read position into a real percentage.
 	Duration float64 `json:"duration"`
@@ -278,10 +316,16 @@ func main() {
 	if _, ok := defaultHeights[s.Resolution]; ok {
 		resolution = s.Resolution
 	}
+	if s.Codec == codecH265 {
+		codec = codecH265
+	} else {
+		codec = codecCopy
+	}
 
 	// Write the resolved settings back into settings.json so the config file
 	// records exactly which binaries and preferences are in use.
-	_ = saveSettings(settings{Dir: getDownloadDir(), Ytdlp: ytdlpPath, Ffmpeg: ffmpegPath, Resolution: resolution})
+	_ = saveSettings(settings{Dir: getDownloadDir(), Ytdlp: ytdlpPath, Ffmpeg: ffmpegPath,
+		Resolution: resolution, Codec: getCodec()})
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handleIndex)
@@ -1017,10 +1061,19 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "No URL provided"})
 		return
 	}
+	req.Codec = strings.TrimSpace(req.Codec)
+	if !validCodec(req.Codec) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Unsupported codec: " + req.Codec})
+		return
+	}
+	if req.Codec == "" {
+		req.Codec = getCodec()
+	}
+	// MP3 output has no faststart/HEVC story; the audio path ignores codec.
 
 	id := newJobID()
 	j := &job{id: id, status: "downloading", url: req.URL, title: req.Title,
-		format: req.Format, progress: 0, duration: req.Duration, created: time.Now()}
+		format: req.Format, codec: req.Codec, progress: 0, duration: req.Duration, created: time.Now()}
 	jobsMu.Lock()
 	jobs[id] = j
 	jobsMu.Unlock()
@@ -1251,8 +1304,13 @@ func runDownload(j *job, url, formatChoice, formatID, customName, start, end str
 
 	// Every line is scored for progress; setJobProgress keeps the bar
 	// monotonic, so a source that resets (audio track after video, merge after
-	// download) cannot drag it backwards.
-	errTail := pumpStderr(stderr, endSec, func(p float64) { setJobProgress(j, p) })
+	// download) cannot drag it backwards. When a re-encode follows, the
+	// download only owns the first 85% of the bar.
+	dlScale := 1.0
+	if j.codec == codecH265 && formatChoice != "audio" {
+		dlScale = transcodeShare
+	}
+	errTail := pumpStderr(stderr, endSec, func(p float64) { setJobProgress(j, p*dlScale) })
 	waitErr := cmd.Wait()
 
 	if waitErr != nil {
@@ -1277,6 +1335,15 @@ func runDownload(j *job, url, formatChoice, formatID, customName, start, end str
 		}
 	}
 
+	// MP4 finish: put moov at the front (one Range request instead of two per
+	// playback start) and, when asked, re-encode to HEVC for half the bitrate.
+	if filepath.Ext(chosen) == ".mp4" {
+		if out, err := runPostprocess(j, chosen, endSec); err != nil {
+			finishJob(j, "error", cmdError(out, err), j.progress)
+			return
+		}
+	}
+
 	base, ext := resolveFinalName(customName, j.title, chosen)
 	finalPath := filepath.Join(dir, base+ext)
 	// uniquePath would otherwise count `chosen` itself as taken and rename the
@@ -1294,6 +1361,191 @@ func runDownload(j *job, url, formatChoice, formatID, customName, start, end str
 	j.filename = filepath.Base(finalPath)
 	jobsMu.Unlock()
 	finishJob(j, "done", "", 100)
+}
+
+// --- MP4 finish pass: faststart + optional HEVC -------------------------
+
+// moovBeforeMdat reports whether path is an MP4/QuickTime file whose index
+// (moov) already precedes the media data (mdat) — i.e. it is faststart-ready
+// and a client can start playing from byte 0 without a second Range request to
+// find the index at the tail.
+func moovBeforeMdat(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	st, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	size := st.Size()
+	var hdr [16]byte
+	for off := int64(0); off+8 <= size; {
+		if _, err := f.ReadAt(hdr[:8], off); err != nil {
+			return false
+		}
+		sz := int64(binary.BigEndian.Uint32(hdr[:4]))
+		typ := string(hdr[4:8])
+		switch sz {
+		case 1: // 64-bit size follows the type
+			if _, err := f.ReadAt(hdr[8:16], off+8); err != nil {
+				return false
+			}
+			sz = int64(binary.BigEndian.Uint64(hdr[8:16]))
+		case 0: // extends to end of file
+			sz = size - off
+		}
+		if sz < 8 {
+			return false
+		}
+		switch typ {
+		case "moov":
+			return true
+		case "mdat":
+			return false
+		}
+		off += sz
+	}
+	return false
+}
+
+// postprocessArgs builds the ffmpeg finish pass. Both modes write a fresh file
+// (moov relocation and re-encoding are not in-place operations).
+//   - copy: stream copy, so the only cost is I/O — the file keeps its source
+//     codec (usually H.264) and just gains a front-loaded index.
+//   - h265: real re-encode. `-tag:v hvc1` matters: Apple players only recognise
+//     hvc1, not the hev1 tag ffmpeg writes by default. Audio is normalised to
+//     AAC because HEVC + Opus in MP4 is poorly supported by TVs and Safari.
+func postprocessArgs(src, dst string, hevc bool) []string {
+	args := []string{"-y", "-nostdin", "-hide_banner", "-i", src}
+	if hevc {
+		args = append(args,
+			"-map", "0:v:0", "-map", "0:a?",
+			"-c:v", "libx265", "-crf", "26", "-preset", "medium",
+			"-tag:v", "hvc1",
+			"-c:a", "aac", "-b:a", "160k",
+		)
+	} else {
+		args = append(args, "-c", "copy")
+	}
+	return append(args, "-movflags", "+faststart", "-f", "mp4", dst)
+}
+
+// exeSuffix is ".exe" on Windows, "" elsewhere — ffprobe sits next to ffmpeg.
+func exeSuffix() string {
+	if runtime.GOOS == "windows" {
+		return ".exe"
+	}
+	return ""
+}
+
+// ffprobePath locates ffprobe: the sibling of the configured ffmpeg wins
+// (Homebrew and static builds ship both), then whatever is on PATH.
+func ffprobePath() string {
+	if ff := getFfmpegPath(); ff != "" {
+		cand := filepath.Join(filepath.Dir(ff), "ffprobe"+exeSuffix())
+		if isExecutable(cand) {
+			return cand
+		}
+	}
+	if p, err := exec.LookPath("ffprobe"); err == nil {
+		return p
+	}
+	return ""
+}
+
+// probeVideoCodec returns the first video stream's codec name ("h264", "hevc",
+// "vp9", …), or "" when ffprobe is missing or the file cannot be probed.
+func probeVideoCodec(path string) string {
+	probe := ffprobePath()
+	if probe == "" {
+		return ""
+	}
+	out, err := exec.Command(probe, "-v", "error", "-select_streams", "v:0",
+		"-show_entries", "stream=codec_name", "-of", "csv=p=0", path).Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// postDeadline scales the re-encode budget with media length: x265 medium runs
+// at roughly 1-2x realtime, so allow 3x plus the floor.
+func postDeadline(durSec float64, hevc bool) time.Duration {
+	d := postTimeout
+	if hevc && durSec > 0 {
+		if est := time.Duration(durSec*3*float64(time.Second)); est > d {
+			d = est
+		}
+	}
+	return d
+}
+
+// runPostprocess makes the finished MP4 stream-friendly. On success src is
+// replaced in place, so the caller's path stays valid. The returned string is
+// the ffmpeg stderr tail for error reporting.
+func runPostprocess(j *job, src string, durSec float64) (string, error) {
+	hevc := j.codec == codecH265
+	if hevc && probeVideoCodec(src) == "hevc" {
+		// Some sites already serve HEVC (and yt-dlp may have picked it). Encoding
+		// HEVC to HEVC buys nothing and costs a generation of quality, so fall
+		// back to a plain remux — the faststart work still happens.
+		log.Printf("postprocess: %s is already HEVC — remux only, skipping re-encode", filepath.Base(src))
+		hevc = false
+	}
+	if !hevc && moovBeforeMdat(src) {
+		return "", nil // already faststart-ready, and no re-encode was asked for
+	}
+	ff := getFfmpegPath()
+	if ff == "" {
+		if hevc {
+			return "", fmt.Errorf("ffmpeg is required to re-encode to H.265")
+		}
+		// Without ffmpeg the file still plays; it only costs an extra Range
+		// request per playback start. Not worth failing the job over.
+		return "", nil
+	}
+
+	dst := strings.TrimSuffix(src, filepath.Ext(src)) + ".pp.mp4"
+	ctx, cancel := context.WithTimeout(context.Background(), postDeadline(durSec, hevc))
+	defer cancel()
+	jobsMu.Lock()
+	j.cancel = cancel // deleting the job now also aborts the encode
+	jobsMu.Unlock()
+
+	cmd := exec.CommandContext(ctx, ff, postprocessArgs(src, dst, hevc)...)
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return "", err
+	}
+	if err := cmd.Start(); err != nil {
+		return "", err
+	}
+
+	base := 0.0
+	if hevc {
+		base = transcodeShare * 100
+	}
+	tail := pumpStderr(stderr, durSec, func(p float64) {
+		setJobProgress(j, base+(100-base)*p/100)
+	})
+	if err := cmd.Wait(); err != nil {
+		_ = os.Remove(dst)
+		if ctx.Err() == context.DeadlineExceeded {
+			return tail, fmt.Errorf("post-processing timed out")
+		}
+		return tail, err
+	}
+
+	if err := os.Remove(src); err != nil {
+		_ = os.Remove(dst)
+		return tail, err
+	}
+	if err := os.Rename(dst, src); err != nil {
+		return tail, err
+	}
+	return tail, nil
 }
 
 func handleStatus(w http.ResponseWriter, r *http.Request) {
@@ -1442,6 +1694,7 @@ func handleSettings(w http.ResponseWriter, r *http.Request) {
 			"ytdlp":      getYtdlpPath(),
 			"ffmpeg":     getFfmpegPath(),
 			"resolution": getResolution(),
+			"codec":      getCodec(),
 		})
 	case http.MethodPost, http.MethodPut:
 		var req struct {
@@ -1449,6 +1702,7 @@ func handleSettings(w http.ResponseWriter, r *http.Request) {
 			Ytdlp      string `json:"ytdlp"`
 			Ffmpeg     string `json:"ffmpeg"`
 			Resolution string `json:"resolution"`
+			Codec      string `json:"codec"`
 		}
 		if err := readJSON(r, &req); err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request"})
@@ -1458,8 +1712,13 @@ func handleSettings(w http.ResponseWriter, r *http.Request) {
 		req.Ytdlp = strings.TrimSpace(req.Ytdlp)
 		req.Ffmpeg = strings.TrimSpace(req.Ffmpeg)
 		req.Resolution = strings.TrimSpace(req.Resolution)
-		if req.Dir == "" && req.Ytdlp == "" && req.Ffmpeg == "" && req.Resolution == "" {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Nothing to update: dir/ytdlp/ffmpeg/resolution are all empty"})
+		req.Codec = strings.TrimSpace(req.Codec)
+		if req.Dir == "" && req.Ytdlp == "" && req.Ffmpeg == "" && req.Resolution == "" && req.Codec == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Nothing to update: dir/ytdlp/ffmpeg/resolution/codec are all empty"})
+			return
+		}
+		if req.Codec != "" && !validCodec(req.Codec) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Unsupported codec: " + req.Codec})
 			return
 		}
 		if req.Resolution != "" {
@@ -1471,7 +1730,14 @@ func handleSettings(w http.ResponseWriter, r *http.Request) {
 
 		settingsMu.Lock()
 		resp := map[string]any{}
-		persist := settings{Dir: downloadDir, Ytdlp: ytdlpPath, Ffmpeg: ffmpegPath, Resolution: resolution}
+		// Read `codec` directly: getCodec() would take the read lock while the
+		// write lock is already held (RWMutex is not reentrant → deadlock).
+		curCodec := codec
+		if curCodec == "" {
+			curCodec = codecCopy
+		}
+		persist := settings{Dir: downloadDir, Ytdlp: ytdlpPath, Ffmpeg: ffmpegPath,
+			Resolution: resolution, Codec: curCodec}
 		if req.Dir != "" {
 			abs, err := filepath.Abs(req.Dir)
 			if err != nil || os.MkdirAll(abs, 0o755) != nil {
@@ -1508,6 +1774,11 @@ func handleSettings(w http.ResponseWriter, r *http.Request) {
 			persist.Resolution = req.Resolution
 			resp["resolution"] = req.Resolution
 		}
+		if req.Codec != "" {
+			codec = req.Codec
+			persist.Codec = req.Codec
+			resp["codec"] = req.Codec
+		}
 		settingsMu.Unlock()
 		_ = saveSettings(persist) // persist; failures are non-fatal
 		if resp["dir"] == nil {
@@ -1515,6 +1786,9 @@ func handleSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		if resp["resolution"] == nil {
 			resp["resolution"] = getResolution()
+		}
+		if resp["codec"] == nil {
+			resp["codec"] = getCodec()
 		}
 		writeJSON(w, http.StatusOK, resp)
 	default:

@@ -1,5 +1,6 @@
 .DS_Store
 .codebuddy/
+.workbuddy/
 .env
 .env.local
 .env.production
@@ -9,3 +10,4 @@ assets/*.mov
 bin/
 downloads/
 settings.json
+.planning/**/progress.md

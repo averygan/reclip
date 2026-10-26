@@ -14,6 +14,7 @@ async function getServer() {
 function hostPattern(server) {
   // Chrome match patterns forbid a port in the host, so strip it and match the
   // host on any port: `http://127.0.0.1:8899` -> `http://127.0.0.1/*`.
+  // The port is filtered back in by sameOrigin — see openPanel.
   try {
     const u = new URL(server);
     return `${u.protocol}//${u.hostname}/*`;
@@ -22,11 +23,30 @@ function hostPattern(server) {
   }
 }
 
+// sameOrigin compares scheme + host + port. A host-only match is not enough:
+// 127.0.0.1:8899 (ReClip) and 127.0.0.1:8898 (some other dashboard) share a
+// hostname, and reusing that tab would navigate away — and destroy — an
+// unrelated app's page. `URL.host` keeps an explicit port and drops a default
+// one, so `http://x:80` and `http://x` compare equal.
+function sameOrigin(tabUrl, server) {
+  if (!tabUrl) return false;
+  try {
+    const a = new URL(tabUrl);
+    const b = new URL(server);
+    return a.protocol === b.protocol && a.host === b.host;
+  } catch {
+    return false;
+  }
+}
+
 function openPanel(server, target) {
   return chrome.tabs.query({ url: hostPattern(server) }).then((tabs) => {
-    if (!tabs.length) return chrome.tabs.create({ url: target });
+    // Only tabs on the exact same origin may be reused; anything else gets a
+    // new tab instead of being navigated away from.
+    const mine = tabs.filter((t) => sameOrigin(t.url, server));
+    if (!mine.length) return chrome.tabs.create({ url: target });
     // Prefer a tab in the current focused window; otherwise reuse the first.
-    const reuse = tabs.find((t) => t.active) || tabs[0];
+    const reuse = mine.find((t) => t.active) || mine[0];
     return chrome.tabs.update(reuse.id, { url: target, active: true })
       .then(() => chrome.windows.update(reuse.windowId, { focused: true }));
   });

@@ -13,6 +13,8 @@ https://github.com/user-attachments/assets/419d3e50-c933-444b-8cab-a9724986ba05
 
 - Download videos from 1000+ supported sites (via [yt-dlp](https://github.com/yt-dlp/yt-dlp))
 - MP4 video or MP3 audio extraction
+- Every MP4 is faststart (moov up front): playback starts with a single Range request
+- Optional H.265 transcode — ~half the bitrate at the same perceived quality, for weak Wi-Fi or router-attached storage (a source that is already HEVC is only remuxed, never re-encoded)
 - Quality/resolution picker
 - Bulk downloads — paste multiple URLs at once
 - Automatic URL deduplication
@@ -56,6 +58,7 @@ A lightweight companion extension lives in [`extension/`](extension/) (Manifest 
 
 - **Right-click** any video link, media element, or page → *ReClip → 用 ReClip 下载* opens the panel with the URL pre-filled and auto-fetches
 - **Toolbar popup** — download the current tab, toggle MP4/MP3, and set the server address (default `http://127.0.0.1:8899`)
+- An open panel tab is reused, but **only when it is the same origin (scheme + host + port)** — another app on `127.0.0.1:8898` is never navigated away from
 
 Install: open `chrome://extensions` → enable **Developer mode** → **Load unpacked** → select the `extension/` directory.
 

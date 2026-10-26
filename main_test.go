@@ -2,6 +2,8 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -952,4 +955,304 @@ func TestYtdlpAsset(t *testing.T) {
 		t.Errorf("unexpected asset %q", asset)
 	}
 	_ = fmt.Sprint(asset)
+}
+
+// --- MP4 finish pass: moov placement + HEVC ---
+
+// box builds one MP4 atom: 4-byte size, 4-byte type, payload.
+func box(typ string, payload []byte) []byte {
+	b := make([]byte, 8, 8+len(payload))
+	binary.BigEndian.PutUint32(b[0:4], uint32(8+len(payload)))
+	copy(b[4:8], typ)
+	return append(b, payload...)
+}
+
+func TestMoovBeforeMdat(t *testing.T) {
+	ftyp := box("ftyp", []byte("isom\x00\x00\x02\x00"))
+	moov := box("moov", []byte("index"))
+	mdat := box("mdat", []byte("payloadpayload"))
+
+	tests := []struct {
+		name  string
+		data  []byte
+		first bool
+	}{
+		{"moov first", concat(ftyp, moov, mdat), true},
+		{"mdat first", concat(ftyp, mdat, moov), false},
+		{"no moov", concat(ftyp, mdat), false},
+		{"empty file", nil, false},
+		{"truncated header", []byte{0, 0, 0}, false},
+	}
+	for _, tt := range tests {
+		p := filepath.Join(t.TempDir(), "a.mp4")
+		if err := os.WriteFile(p, tt.data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if got := moovBeforeMdat(p); got != tt.first {
+			t.Errorf("%s: moovBeforeMdat = %v, want %v", tt.name, got, tt.first)
+		}
+	}
+	if moovBeforeMdat(filepath.Join(t.TempDir(), "missing.mp4")) {
+		t.Error("missing file should not report faststart")
+	}
+}
+
+func TestMoovBeforeMdat64BitSize(t *testing.T) {
+	// 64-bit size form: size==1, then a 64-bit largesize after the type.
+	moov := make([]byte, 16, 24)
+	binary.BigEndian.PutUint32(moov[0:4], 1)
+	copy(moov[4:8], "moov")
+	binary.BigEndian.PutUint64(moov[8:16], 24)
+	moov = append(moov, []byte("XXXX")...)
+	p := filepath.Join(t.TempDir(), "big.mp4")
+	if err := os.WriteFile(p, concat(moov, box("mdat", []byte("data"))), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !moovBeforeMdat(p) {
+		t.Error("64-bit moov box not detected as leading index")
+	}
+}
+
+func concat(parts ...[]byte) []byte {
+	var out []byte
+	for _, p := range parts {
+		out = append(out, p...)
+	}
+	return out
+}
+
+func TestPostprocessArgs(t *testing.T) {
+	copyArgs := strings.Join(postprocessArgs("in.mp4", "out.mp4", false), " ")
+	for _, want := range []string{"-c copy", "-movflags +faststart", "-f mp4 out.mp4"} {
+		if !strings.Contains(copyArgs, want) {
+			t.Errorf("copy args missing %q: %s", want, copyArgs)
+		}
+	}
+	if strings.Contains(copyArgs, "libx265") {
+		t.Errorf("copy args must not re-encode: %s", copyArgs)
+	}
+
+	hevcArgs := strings.Join(postprocessArgs("in.mp4", "out.mp4", true), " ")
+	for _, want := range []string{"-c:v libx265", "-crf 26", "-tag:v hvc1", "-movflags +faststart", "-c:a aac"} {
+		if !strings.Contains(hevcArgs, want) {
+			t.Errorf("hevc args missing %q: %s", want, hevcArgs)
+		}
+	}
+}
+
+func TestValidCodec(t *testing.T) {
+	for _, s := range []string{"", codecCopy, codecH265} {
+		if !validCodec(s) {
+			t.Errorf("validCodec(%q) = false, want true", s)
+		}
+	}
+	for _, s := range []string{"h264", "av1", "H265", "copy "} {
+		if validCodec(s) {
+			t.Errorf("validCodec(%q) = true, want false", s)
+		}
+	}
+}
+
+func TestPostDeadline(t *testing.T) {
+	if got := postDeadline(0, true); got != postTimeout {
+		t.Errorf("postDeadline(0, hevc) = %v, want floor %v", got, postTimeout)
+	}
+	if got := postDeadline(3600, true); got < time.Hour {
+		t.Errorf("postDeadline(1h, hevc) = %v, want >= 1h", got)
+	}
+	if got := postDeadline(3600, false); got != postTimeout {
+		t.Errorf("postDeadline(1h, copy) = %v, want floor %v", got, postTimeout)
+	}
+}
+
+// TestRunPostprocessEndToEnd drives real ffmpeg: a source MP4 without faststart
+// must come back with moov in front, and the H.265 mode must actually re-encode
+// to hvc1. Skipped when ffmpeg (or its x265 encoder) is unavailable.
+func TestRunPostprocessEndToEnd(t *testing.T) {
+	ff, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("ffmpeg not installed")
+	}
+	prevFfmpeg := ffmpegPath
+	ffmpegPath = ff
+	defer func() { ffmpegPath = prevFfmpeg }()
+
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src.mp4")
+	if out, err := exec.Command(ff, "-y", "-nostdin", "-hide_banner",
+		"-f", "lavfi", "-i", "testsrc2=size=160x120:rate=10:duration=1",
+		"-c:v", "mpeg4", "-q:v", "5", src).CombinedOutput(); err != nil {
+		t.Skipf("cannot generate fixture: %v (%s)", err, out)
+	}
+	if moovBeforeMdat(src) {
+		t.Fatal("fixture unexpectedly already faststart")
+	}
+
+	// copy: remux only, moov moves to the front, codec untouched.
+	cp := filepath.Join(dir, "copy.mp4")
+	if err := os.Rename(src, cp); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runPostprocess(&job{id: "t1", codec: codecCopy}, cp, 1); err != nil {
+		t.Fatalf("copy postprocess: %v", err)
+	}
+	if !moovBeforeMdat(cp) {
+		t.Error("copy postprocess left moov at the tail")
+	}
+
+	// h265: real re-encode, tagged hvc1 so Apple players accept it.
+	if !ffmpegHasEncoder(ff, "libx265") {
+		t.Skip("ffmpeg built without libx265")
+	}
+	hp := filepath.Join(dir, "hevc.mp4")
+	if err := os.Rename(cp, hp); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runPostprocess(&job{id: "t2", codec: codecH265}, hp, 1); err != nil {
+		t.Fatalf("hevc postprocess: %v", err)
+	}
+	if !moovBeforeMdat(hp) {
+		t.Error("hevc postprocess left moov at the tail")
+	}
+	probe, err := exec.Command("ffprobe", "-v", "error", "-select_streams", "v:0",
+		"-show_entries", "stream=codec_name,codec_tag_string", "-of", "csv=p=0", hp).Output()
+	if err != nil {
+		t.Skipf("ffprobe unavailable: %v", err)
+	}
+	got := strings.TrimSpace(string(probe))
+	if !strings.Contains(got, "hevc") || !strings.Contains(got, "hvc1") {
+		t.Errorf("stream = %q, want hevc + hvc1", got)
+	}
+}
+
+func ffmpegHasEncoder(ff, name string) bool {
+	out, err := exec.Command(ff, "-hide_banner", "-encoders").Output()
+	return err == nil && bytes.Contains(out, []byte(name))
+}
+
+// --- settings: codec ---
+
+func TestSettingsCodecRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	prevFile, prevCodec := settingsFile, codec
+	settingsFile = filepath.Join(dir, "settings.json")
+	defer func() { settingsFile, codec = prevFile, prevCodec }()
+
+	codec = ""
+	post := func(body string) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		handleSettings(w, httptest.NewRequest(http.MethodPost, "/api/settings", strings.NewReader(body)))
+		return w
+	}
+
+	if w := post(`{"codec":"h265"}`); w.Code != http.StatusOK {
+		t.Fatalf("POST codec=h265 status = %d: %s", w.Code, w.Body)
+	}
+	if getCodec() != codecH265 {
+		t.Errorf("codec = %q, want h265", getCodec())
+	}
+	saved, err := loadSettings()
+	if err != nil {
+		t.Fatalf("loadSettings: %v", err)
+	}
+	if saved.Codec != codecH265 {
+		t.Errorf("persisted codec = %q, want h265", saved.Codec)
+	}
+
+	if w := post(`{"codec":"h264"}`); w.Code != http.StatusBadRequest {
+		t.Fatalf("POST bad codec status = %d, want 400", w.Code)
+	}
+	if getCodec() != codecH265 {
+		t.Errorf("codec changed by a rejected value: %q", getCodec())
+	}
+}
+
+// TestProbeVideoCodecEndToEnd checks the ffprobe wrapper against real files.
+func TestProbeVideoCodecEndToEnd(t *testing.T) {
+	ff, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("ffmpeg not installed")
+	}
+	prevFfmpeg := ffmpegPath
+	ffmpegPath = ff
+	defer func() { ffmpegPath = prevFfmpeg }()
+
+	if ffprobePath() == "" {
+		t.Skip("ffprobe not installed")
+	}
+
+	dir := t.TempDir()
+	enc := func(name string, codecArgs ...string) string {
+		p := filepath.Join(dir, name)
+		args := []string{"-y", "-nostdin", "-hide_banner",
+			"-f", "lavfi", "-i", "testsrc2=size=160x120:rate=10:duration=1"}
+		args = append(args, codecArgs...)
+		if out, err := exec.Command(ff, append(args, p)...).CombinedOutput(); err != nil {
+			t.Skipf("cannot generate %s: %v (%s)", name, err, out)
+		}
+		return p
+	}
+
+	h264 := enc("h264.mp4", "-c:v", "libx264", "-preset", "ultrafast")
+	if got := probeVideoCodec(h264); got != "h264" {
+		t.Errorf("probeVideoCodec(h264) = %q, want h264", got)
+	}
+	if !ffmpegHasEncoder(ff, "libx265") {
+		t.Skip("ffmpeg built without libx265")
+	}
+	hevc := enc("hevc.mp4", "-c:v", "libx265", "-crf", "10", "-tag:v", "hvc1")
+	if got := probeVideoCodec(hevc); got != "hevc" {
+		t.Errorf("probeVideoCodec(hevc) = %q, want hevc", got)
+	}
+	if got := probeVideoCodec(filepath.Join(dir, "missing.mp4")); got != "" {
+		t.Errorf("probeVideoCodec(missing) = %q, want empty", got)
+	}
+}
+
+// TestRunPostprocessSkipsReencodeForHEVC pins the "already HEVC" shortcut: an
+// HEVC source asked to become HEVC must be remuxed, not re-encoded. A crf26
+// re-encode of this crf10 fixture would shrink it dramatically, so a near
+// unchanged file size is the proof that no encode ran.
+func TestRunPostprocessSkipsReencodeForHEVC(t *testing.T) {
+	ff, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("ffmpeg not installed")
+	}
+	prevFfmpeg := ffmpegPath
+	ffmpegPath = ff
+	defer func() { ffmpegPath = prevFfmpeg }()
+	if !ffmpegHasEncoder(ff, "libx265") || ffprobePath() == "" {
+		t.Skip("needs libx265 + ffprobe")
+	}
+
+	src := filepath.Join(t.TempDir(), "hevc-src.mp4")
+	if out, err := exec.Command(ff, "-y", "-nostdin", "-hide_banner",
+		"-f", "lavfi", "-i", "testsrc2=size=320x240:rate=25:duration=2",
+		"-c:v", "libx265", "-crf", "8", "-tag:v", "hvc1", src).CombinedOutput(); err != nil {
+		t.Skipf("cannot generate fixture: %v (%s)", err, out)
+	}
+	before, err := os.Stat(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if moovBeforeMdat(src) {
+		t.Fatal("fixture unexpectedly already faststart")
+	}
+
+	if _, err := runPostprocess(&job{id: "t3", codec: codecH265}, src, 2); err != nil {
+		t.Fatalf("postprocess: %v", err)
+	}
+	if !moovBeforeMdat(src) {
+		t.Error("remux did not move moov to the front")
+	}
+	if got := probeVideoCodec(src); got != "hevc" {
+		t.Errorf("codec = %q, want hevc", got)
+	}
+	after, err := os.Stat(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ratio := float64(after.Size()) / float64(before.Size()); ratio < 0.9 {
+		t.Errorf("file shrank to %.0f%% of the source — the shortcut did not skip the encode", ratio*100)
+	}
 }
