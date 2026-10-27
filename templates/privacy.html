@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>隐私政策 — ReClip</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/fonts/fonts.css">
+  <style>
+    :root {
+      --bg: #f4f1eb;
+      --fg: #3a3a38;
+      --accent: #e85d2a;
+      --muted: #9c9889;
+      --card: #fff;
+      --card-border: #e2ded6;
+      --radius: 14px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'DM Mono', monospace;
+      background: var(--bg);
+      color: var(--fg);
+      min-height: 100vh;
+      line-height: 1.7;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      opacity: 0.03;
+      pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+      background-size: 128px;
+    }
+    .page {
+      max-width: 620px;
+      margin: 0 auto;
+      padding: 56px 24px 80px;
+    }
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 36px;
+    }
+    .brand h1 {
+      font-family: 'Instrument Serif', serif;
+      font-size: 2.4rem;
+      font-weight: 400;
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+    .brand h1 em { font-style: italic; color: var(--accent); }
+    .brand a {
+      margin-left: auto;
+      font-size: 0.74rem;
+      color: var(--muted);
+      text-decoration: none;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 2px;
+    }
+    .brand a:hover { color: var(--accent); border-color: var(--accent); }
+    h2 {
+      font-size: 1.05rem;
+      margin: 30px 0 8px;
+      color: var(--fg);
+    }
+    h2:first-of-type { margin-top: 0; }
+    p, li { font-size: 0.86rem; color: var(--fg); }
+    ul { padding-left: 1.2em; margin: 6px 0; }
+    li { margin-bottom: 6px; }
+    .lead { color: var(--muted); font-size: 0.82rem; margin-bottom: 8px; }
+    .updated { font-size: 0.72rem; color: var(--muted); margin-top: 40px; letter-spacing: 0.04em; }
+    strong { color: var(--accent); font-weight: 400; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="brand">
+      <h1>Re<em>Clip</em></h1>
+      <a href="/">← 返回 / Back</a>
+    </div>
+
+    <p class="lead">ReClip 是一款在本地运行的免费媒体下载工具。本政策说明它如何处理你提交的数据。</p>
+
+    <h2>我们收集什么</h2>
+    <ul>
+      <li><strong>你粘贴的链接</strong>：仅用于向 yt-dlp 发起抓取/下载请求，不会永久保存。</li>
+      <li><strong>下载的文件</strong>：保存在你于本机配置的目录中（设置面板里的"保存目录"）。</li>
+      <li><strong>日志</strong>：服务端可能记录提交的链接与错误信息以便排查问题，按你的运行环境自行清理。</li>
+    </ul>
+
+    <h2>我们不做什么</h2>
+    <ul>
+      <li>不创建账户，不收集姓名、邮箱等个人身份信息。</li>
+      <li>不上传、不出售、不与第三方共享你的数据。</li>
+      <li>服务端<strong>不设置 Cookie</strong>，也不进行行为追踪或遥测。</li>
+    </ul>
+
+    <h2>缩略图与第三方内容</h2>
+    <p>预览缩略图由你的浏览器<strong>直接</strong>从视频平台/CDN 加载，ReClip 不代理、不缓存这些图片。其加载与显示受对应平台的热链与隐私策略约束。</p>
+
+    <h2>浏览器扩展（Companion）</h2>
+    <p>扩展仅在<strong>你主动触发</strong>时，把当前页面或所选链接发送到你本地运行的 ReClip 服务器，不会在后台自动收集数据。</p>
+
+    <h2>你的控制权</h2>
+    <ul>
+      <li>下载目录由你指定，文件完全保存在你的设备上。</li>
+      <li>可随时停止服务、删除下载目录或清除运行日志。</li>
+      <li>不提供账户，因此无需注销或导出个人数据。</li>
+    </ul>
+
+    <p class="updated">最后更新：2026-09-14</p>
+  </div>
+</body>
+</html>

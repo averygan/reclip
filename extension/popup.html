@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+  :root {
+    --bg: #f4f1eb;
+    --fg: #3a3a38;
+    --accent: #e85d2a;
+    --muted: #9c9889;
+    --card: #fff;
+    --border: #e2ded6;
+    --error: #c43d3d;
+    --success: #2d8a4e;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 300px;
+    padding: 16px;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+  }
+  .brand {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+  }
+  .brand em { font-style: italic; color: var(--accent); }
+  input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--fg);
+    font-family: inherit;
+    font-size: 12px;
+    outline: none;
+    margin-bottom: 8px;
+  }
+  input:focus { border-color: var(--accent); }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .pills {
+    display: flex;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--card);
+    flex: 1;
+  }
+  .pill {
+    flex: 1;
+    padding: 8px 0;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+  }
+  .pill.active { background: var(--fg); color: var(--bg); }
+  .btn {
+    padding: 8px 14px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+  }
+  .btn:hover { background: #d04e1f; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .server-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .server-row input { margin-bottom: 0; flex: 1; }
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+  }
+  .dot.ok { background: var(--success); }
+  .dot.bad { background: var(--error); }
+  #msg { margin-top: 10px; font-size: 11px; color: var(--error); min-height: 14px; }
+  .hint { color: var(--muted); font-size: 10px; margin-top: 8px; line-height: 1.5; }
+</style>
+</head>
+<body>
+  <div class="brand">Re<em>Clip</em></div>
+
+  <div class="server-row">
+    <input id="server" placeholder="http://127.0.0.1:8899" title="ReClip 服务器地址">
+    <span class="dot" id="statusDot" title="服务器状态"></span>
+  </div>
+
+  <input id="url" placeholder="视频链接，留空则使用当前标签页">
+
+  <div class="row">
+    <div class="pills">
+      <button class="pill active" data-fmt="video">MP4</button>
+      <button class="pill" data-fmt="audio">MP3</button>
+    </div>
+    <button class="btn" id="fetchBtn">Fetch</button>
+  </div>
+
+  <div id="msg"></div>
+  <div class="hint">右键任意视频链接或页面，也可通过「ReClip → 用 ReClip 下载」发起。</div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

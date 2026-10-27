@@ -1,12 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ReClip — Free Media Downloader</title>
+  <title data-i18n="page.title">ReClip — 免费媒体下载器</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/fonts/fonts.css">
   <style>
     :root {
       --bg: #f4f1eb;
@@ -48,23 +47,53 @@
       padding: 60px 24px 80px;
     }
 
-    .brand { margin-bottom: 48px; }
+    /* Logo and tagline share a single row — the tagline no longer sits
+       underneath, which is what lets the whole block be half as tall. */
+    .brand {
+      margin-bottom: 32px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px;
+    }
     .brand h1 {
       font-family: 'Instrument Serif', serif;
-      font-size: 4.2rem;
+      font-size: 2.9rem;
       font-weight: 400;
       letter-spacing: -0.03em;
       line-height: 1;
       color: var(--fg);
     }
     .brand h1 em { font-style: italic; color: var(--accent); }
+    .brand-side {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-bottom: 5px; /* sit on the logo's baseline, not its box bottom */
+    }
     .brand p {
-      margin-top: 10px;
+      margin: 0;
       font-size: 0.78rem;
       color: var(--muted);
       letter-spacing: 0.04em;
       text-transform: uppercase;
+      white-space: nowrap;
     }
+
+    .lang-btn {
+      flex-shrink: 0;
+      padding: 6px 12px;
+      border: 1.5px solid var(--card-border);
+      border-radius: 999px;
+      background: var(--card);
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .lang-btn:hover { border-color: var(--fg); color: var(--fg); }
 
     textarea {
       width: 100%;
@@ -184,10 +213,19 @@
       justify-content: center;
       color: var(--muted);
     }
+    .card-thumb .no-thumb.no-image {
+      flex-direction: column;
+      gap: 4px;
+    }
     .card-thumb .no-thumb svg {
       width: 28px;
       height: 28px;
       opacity: 0.5;
+    }
+    .card-thumb .no-thumb span {
+      font-size: 0.62rem;
+      line-height: 1;
+      opacity: 0.75;
     }
 
     /* Shimmer skeleton for loading state */
@@ -354,6 +392,216 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* Save-as filename input on cards */
+    .name-input {
+      width: 100%;
+      padding: 7px 10px;
+      border: 1.5px solid var(--card-border);
+      border-radius: 7px;
+      background: var(--card);
+      color: var(--fg);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      outline: none;
+      margin-bottom: 7px;
+    }
+    .name-input:focus { border-color: var(--accent); }
+    .name-input::placeholder { color: var(--muted); }
+
+    /* Excerpt range inputs on cards */
+    .range-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 7px;
+    }
+    .range-input {
+      flex: 1;
+      min-width: 0;
+      padding: 7px 10px;
+      border: 1.5px solid var(--card-border);
+      border-radius: 7px;
+      background: var(--card);
+      color: var(--fg);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      outline: none;
+    }
+    .range-input:focus { border-color: var(--accent); }
+    .range-input::placeholder { color: var(--muted); }
+    .range-sep { color: var(--muted); font-size: 0.8rem; }
+    .range-total {
+      font-size: 0.62rem;
+      color: var(--muted);
+      margin: -2px 0 7px;
+      letter-spacing: 0.03em;
+    }
+
+    /* Downloads panel */
+    .section { margin-top: 28px; }
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .section-title {
+      font-family: 'Instrument Serif', serif;
+      font-size: 1.4rem;
+      color: var(--fg);
+    }
+    .section-count {
+      font-size: 0.68rem;
+      color: var(--muted);
+      border: 1.5px solid var(--card-border);
+      border-radius: 999px;
+      padding: 3px 10px;
+    }
+    .job {
+      border: 1.5px solid var(--card-border);
+      border-radius: var(--radius);
+      background: var(--card);
+      padding: 12px 14px;
+      margin-bottom: 8px;
+    }
+    .job-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .job-title {
+      font-size: 0.78rem;
+      color: var(--fg);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+      min-width: 0;
+    }
+    .job-title.url { color: var(--muted); font-size: 0.68rem; }
+    .badge {
+      flex-shrink: 0;
+      font-size: 0.62rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid;
+    }
+    .badge.downloading { color: var(--accent); border-color: var(--accent); }
+    .badge.done { color: var(--success); border-color: var(--success); }
+    .badge.error { color: var(--error); border-color: var(--error); }
+    .job-track {
+      height: 7px;
+      border-radius: 5px;
+      background: var(--card-border);
+      margin: 9px 0 6px;
+      overflow: hidden;
+    }
+    .job-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 5px;
+      background: var(--accent);
+      transition: width 0.4s ease;
+    }
+    .job-sub {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.62rem;
+      color: var(--muted);
+    }
+    .job-filename {
+      color: var(--success);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+      min-width: 0;
+    }
+    .job-error {
+      color: var(--error);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+      min-width: 0;
+    }
+    .job-btns { display: flex; gap: 8px; flex-shrink: 0; }
+    .job-btn {
+      padding: 4px 10px;
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      background: transparent;
+      color: var(--fg);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.64rem;
+      cursor: pointer;
+    }
+    .job-btn:hover { border-color: var(--fg); }
+    .job-btn.save { color: var(--success); border-color: var(--success); }
+    .job-btn.danger { color: var(--error); border-color: var(--error); }
+
+    /* Settings */
+    .settings {
+      margin-top: 28px;
+      border: 1.5px solid var(--card-border);
+      border-radius: var(--radius);
+      background: var(--card);
+      padding: 14px;
+    }
+    .settings summary {
+      cursor: pointer;
+      font-family: 'Instrument Serif', serif;
+      font-size: 1.05rem;
+      color: var(--fg);
+    }
+    .settings-row {
+      display: flex;
+      flex-wrap: wrap; /* long labels drop above the input instead of squishing it */
+      align-items: center;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .settings-row input,
+    .settings-row select {
+      flex: 1 1 140px; /* shrink, but wrap before getting too tiny */
+      min-width: 0;
+      padding: 9px 12px;
+      border: 1.5px solid var(--card-border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.76rem;
+      outline: none;
+    }
+    .settings-row input:focus,
+    .settings-row select:focus { border-color: var(--accent); }
+    .settings-row select { cursor: pointer; }
+    .settings-label {
+      align-self: center;
+      font-size: 0.68rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+    }
+    .settings-save {
+      padding: 9px 16px;
+      border: none;
+      border-radius: 8px;
+      background: var(--fg);
+      color: var(--bg);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .settings-hint { font-size: 0.64rem; color: var(--muted); margin-top: 10px; letter-spacing: 0.02em; }
+
     .footer {
       margin-top: 48px;
       text-align: center;
@@ -363,10 +611,25 @@
       text-transform: uppercase;
       line-height: 1.8;
     }
+    .privacy-link {
+      margin-top: 40px;
+      text-align: center;
+      font-size: 0.72rem;
+    }
+    .privacy-link a {
+      color: var(--muted);
+      text-decoration: none;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 2px;
+    }
+    .privacy-link a:hover { color: var(--accent); border-color: var(--accent); }
 
     /* Mobile */
     @media (max-width: 500px) {
-      .brand h1 { font-size: 3rem; }
+      .brand { gap: 8px; }
+      .brand h1 { font-size: 2.1rem; }
+      .brand-side { gap: 8px; padding-bottom: 4px; }
+      .brand p { font-size: 0.7rem; letter-spacing: 0.02em; }
       .page { padding: 40px 16px 60px; }
       .card { flex-direction: column; gap: 10px; }
       .card-thumb {
@@ -384,21 +647,63 @@
   <div class="page">
     <div class="brand">
       <h1>Re<em>Clip</em></h1>
-      <p>Free media downloader</p>
+      <div class="brand-side">
+        <p data-i18n="brand.tagline">免费媒体下载器</p>
+        <button class="lang-btn" id="langBtn" onclick="toggleLang()" data-i18n="lang.switch">English</button>
+      </div>
     </div>
 
-    <textarea id="urls" placeholder="Paste one or more URLs..." rows="2"></textarea>
-    <p class="hint">Multiple links? Separate with spaces, commas, or newlines.</p>
+    <textarea id="urls" rows="2" data-i18n-ph="input.placeholder" placeholder="粘贴一个或多个链接…"></textarea>
+    <p class="hint" data-i18n="input.hint">多个链接？用空格、逗号或换行分隔。</p>
 
     <div class="controls">
       <div class="pill-group">
         <button class="pill active" data-format="video" onclick="setFormat(this)">MP4</button>
         <button class="pill" data-format="audio" onclick="setFormat(this)">MP3</button>
       </div>
-      <button class="fetch-btn" id="goBtn" onclick="go()">Fetch</button>
+      <button class="fetch-btn" id="goBtn" onclick="go()" data-i18n="action.fetch">获取</button>
     </div>
 
     <div id="cards" class="cards"></div>
+
+    <div id="jobsSection" class="section" hidden>
+      <div class="section-head">
+        <span class="section-title" data-i18n="section.downloads">下载</span>
+        <span class="section-count" id="jobsCount">0</span>
+      </div>
+      <div id="jobsList"></div>
+    </div>
+
+    <details class="settings">
+      <summary data-i18n="settings.title">设置</summary>
+      <div class="settings-row">
+        <span class="settings-label" data-i18n="settings.dir">下载目录</span>
+        <input id="dirInput" type="text" data-i18n-ph="settings.dirPlaceholder" placeholder="绝对路径">
+        <button class="settings-save" onclick="saveSettingsDir()" data-i18n="settings.save">保存</button>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label" data-i18n="settings.resolution">默认分辨率</span>
+        <select id="resSelect">
+          <option value="1080p">1080p</option>
+          <option value="720p">720p</option>
+          <option value="480p">480p</option>
+          <option value="360p">360p</option>
+        </select>
+        <button class="settings-save" onclick="saveDefaultResolution()" data-i18n="settings.save">保存</button>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label" data-i18n="settings.codec">视频编码</span>
+        <select id="codecSelect">
+          <option value="copy" data-i18n="settings.codecCopy">H.264 · 直接封装（快，无损）</option>
+          <option value="h265" data-i18n="settings.codecHevc">H.265 · 转码（省约一半码率）</option>
+        </select>
+        <button class="settings-save" onclick="saveCodec()" data-i18n="settings.save">保存</button>
+      </div>
+      <p class="settings-hint" data-i18n="settings.codecHint">MP4 一律做 faststart（moov 前置），起播只需一次 Range 请求。H.265 需重编码，耗时约为片长的 1–3 倍，老设备/部分浏览器可能无法硬解。</p>
+      <p class="settings-hint" data-i18n="settings.hint">新卡片会默认选中不高于该高度的画质；视频保存在下方目录（服务端）。</p>
+    </details>
+
+    <p class="privacy-link"><a href="/privacy" data-i18n="footer.privacy">隐私政策 / Privacy Policy</a></p>
 
     <div class="footer">
       YouTube &middot; TikTok &middot; Instagram &middot; Twitter/X &middot; Reddit &middot; Facebook<br>
@@ -408,8 +713,142 @@
   </div>
 
   <script>
+    // --- i18n ---------------------------------------------------------------
+    // Chinese is the default; the choice is remembered in localStorage, so it
+    // follows the browser, not the server.
+    const STRINGS = {
+      zh: {
+        'page.title': 'ReClip — 免费媒体下载器',
+        'brand.tagline': '免费媒体下载器',
+        'input.placeholder': '粘贴一个或多个链接…',
+        'input.hint': '多个链接？用空格、逗号或换行分隔。',
+        'action.fetch': '获取',
+        'action.fetchLoading': '加载中…',
+        'action.download': '下载',
+        'action.downloadAll': '全部下载',
+        'action.downloadAllBusy': '下载中…',
+        'action.save': '保存',
+        'action.retry': '重试',
+        'action.cancel': '取消',
+        'action.remove': '移除',
+        'card.untitled': '未命名',
+        'card.fetchFailed': '无法获取视频',
+        'card.noImage': '无图',
+        'card.namePlaceholder': '另存为（可选）',
+        'card.startPlaceholder': '开始（如 1:30）',
+        'card.endPlaceholder': '结束（如 2:45）',
+        'card.fullLength': '总时长：{d}',
+        'card.downloading': '下载中…',
+        'card.downloadFailed': '下载失败',
+        'section.downloads': '下载',
+        'footer.privacy': '隐私政策 / Privacy Policy',
+        'settings.title': '设置',
+        'settings.dir': '下载目录',
+        'settings.resolution': '默认分辨率',
+        'settings.codec': '视频编码',
+        'settings.codecCopy': 'H.264 · 直接封装（快，无损）',
+        'settings.codecHevc': 'H.265 · 转码（省约一半码率）',
+        'settings.codecHint': 'MP4 一律做 faststart（moov 前置），起播只需一次 Range 请求。H.265 需重编码，耗时约为片长的 1–3 倍，老设备/部分浏览器可能无法硬解。',
+        'settings.dirPlaceholder': '保存目录（绝对路径）',
+        'settings.save': '保存',
+        'settings.hint': '新卡片会默认选中不高于该高度的画质；视频保存在下方目录（服务端）。',
+        'status.downloading': '下载中',
+        'status.done': '已完成',
+        'status.error': '失败',
+        'lang.switch': 'English',
+        'err.unsupported': '不支持该链接',
+        'err.unavailable': '视频不可用或为私密',
+        'err.private': '该视频为私密视频',
+        'err.403': '平台拒绝了访问（403）',
+        'err.404': '找不到该视频',
+        'err.copyright': '因版权原因被屏蔽',
+        'err.geo': '该地区无法观看此视频',
+        'err.timeout': '请求超时，请重试',
+        'err.network': '网络错误，请检查连接',
+      },
+      en: {
+        'page.title': 'ReClip — Free Media Downloader',
+        'brand.tagline': 'Free media downloader',
+        'input.placeholder': 'Paste one or more URLs...',
+        'input.hint': 'Multiple links? Separate with spaces, commas, or newlines.',
+        'action.fetch': 'Fetch',
+        'action.fetchLoading': 'Loading...',
+        'action.download': 'Download',
+        'action.downloadAll': 'Download All',
+        'action.downloadAllBusy': 'Downloading...',
+        'action.save': 'Save',
+        'action.retry': 'Retry',
+        'action.cancel': 'Cancel',
+        'action.remove': 'Remove',
+        'card.untitled': 'Untitled',
+        'card.fetchFailed': 'Could not fetch video',
+        'card.noImage': 'No image',
+        'card.namePlaceholder': 'Save as (optional)',
+        'card.startPlaceholder': 'Start (e.g. 1:30)',
+        'card.endPlaceholder': 'End (e.g. 2:45)',
+        'card.fullLength': 'Full length: {d}',
+        'card.downloading': 'Downloading...',
+        'card.downloadFailed': 'Download failed',
+        'section.downloads': 'Downloads',
+        'footer.privacy': 'Privacy Policy / 隐私政策',
+        'settings.title': 'Settings',
+        'settings.dir': 'Download directory',
+        'settings.resolution': 'Default resolution',
+        'settings.codec': 'Video codec',
+        'settings.codecCopy': 'H.264 · remux only (fast, lossless)',
+        'settings.codecHevc': 'H.265 · transcode (~half the bitrate)',
+        'settings.codecHint': 'Every MP4 gets faststart (moov first), so playback starts with a single Range request. H.265 needs a full re-encode — roughly 1–3x the clip length — and older devices may not decode it in hardware.',
+        'settings.dirPlaceholder': 'Save directory (absolute path)',
+        'settings.save': 'Save',
+        'settings.hint': 'New cards start on the first quality at or below this height. Videos are saved to the folder below, on the server.',
+        'status.downloading': 'Downloading',
+        'status.done': 'Done',
+        'status.error': 'Error',
+        'lang.switch': '中文',
+        'err.unsupported': 'This URL is not supported',
+        'err.unavailable': 'Video is unavailable or private',
+        'err.private': 'This video is private',
+        'err.403': 'Access denied by the platform',
+        'err.404': 'Video not found',
+        'err.copyright': 'Video blocked due to copyright',
+        'err.geo': 'Video not available in your region',
+        'err.timeout': 'Request timed out — try again',
+        'err.network': 'Network error — check your connection',
+      },
+    };
+
+    let lang = 'zh';
+    try {
+      const saved = localStorage.getItem('reclip.lang');
+      if (saved && STRINGS[saved]) lang = saved;
+    } catch { /* localStorage unavailable: fall back to the default */ }
+
+    function t(key, vars) {
+      let s = (STRINGS[lang] && STRINGS[lang][key]) || STRINGS.en[key] || key;
+      if (vars) for (const k in vars) s = s.replace('{' + k + '}', vars[k]);
+      return s;
+    }
+
+    // Rewrite every static, attribute-driven string in the document.
+    function applyStatic() {
+      document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+      document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+      document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
+    }
+
+    function toggleLang() {
+      lang = lang === 'zh' ? 'en' : 'zh';
+      try { localStorage.setItem('reclip.lang', lang); } catch { /* ignore */ }
+      applyStatic();
+      const goBtn = document.getElementById('goBtn');
+      if (goBtn && !goBtn.disabled) goBtn.textContent = t('action.fetch');
+      rerenderCards();          // cards carry most of the dynamic copy
+      if (lastJobs.length) renderJobs(lastJobs);
+    }
+
     let currentFormat = 'video';
     let cardData = [];
+    let lastJobs = [];
 
     function setFormat(btn) {
       document.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
@@ -434,17 +873,35 @@
       return d.innerHTML;
     }
 
+    // yt-dlp messages are English; map the ones we recognise onto the active
+    // language and pass the rest through untouched.
+    const ERROR_RULES = [
+      ['Unsupported URL', 'err.unsupported'],
+      ['Video unavailable', 'err.unavailable'],
+      ['Private video', 'err.private'],
+      ['HTTP Error 403', 'err.403'],
+      ['HTTP Error 404', 'err.404'],
+      ['copyright', 'err.copyright'],
+      ['geo', 'err.geo'],
+      ['imed out', 'err.timeout'],
+      ['network', 'err.network'],
+    ];
+
     function friendlyError(err) {
-      if (err.includes('Unsupported URL')) return 'This URL is not supported';
-      if (err.includes('Video unavailable')) return 'Video is unavailable or private';
-      if (err.includes('Private video')) return 'This video is private';
-      if (err.includes('HTTP Error 403')) return 'Access denied by the platform';
-      if (err.includes('HTTP Error 404')) return 'Video not found';
-      if (err.includes('copyright')) return 'Video blocked due to copyright';
-      if (err.includes('geo')) return 'Video not available in your region';
-      if (err.includes('timed out') || err.includes('Timed out')) return 'Request timed out — try again';
-      if (err.includes('network') || err.includes('Network')) return 'Network error — check your connection';
-      return err.length > 80 ? err.slice(0, 80) + '...' : err;
+      const msg = err || '';
+      for (const [needle, key] of ERROR_RULES) {
+        if (msg.toLowerCase().includes(needle.toLowerCase())) return t(key);
+      }
+      return msg.length > 80 ? msg.slice(0, 80) + '...' : msg;
+    }
+
+    const STATUS_KEYS = {
+      downloading: 'status.downloading',
+      done: 'status.done',
+      error: 'status.error',
+    };
+    function statusLabel(status) {
+      return t(STATUS_KEYS[status] || status);
     }
 
     document.getElementById('urls').addEventListener('keydown', e => {
@@ -458,7 +915,7 @@
       const btn = document.getElementById('goBtn');
       const container = document.getElementById('cards');
       btn.disabled = true;
-      btn.textContent = 'Loading...';
+      btn.textContent = t('action.fetchLoading');
       container.innerHTML = '';
       cardData = [];
 
@@ -502,7 +959,9 @@
               duration: data.duration,
               uploader: data.uploader || '',
               formats: data.formats || [],
-              selectedFormatId: data.formats?.[0]?.id || null,
+              // Server maps the default-resolution preference onto a real
+              // format id; fall back to the sharpest one.
+              selectedFormatId: data.default_id || data.formats?.[0]?.id || null,
             };
           }
         } catch (err) {
@@ -516,7 +975,13 @@
       }
 
       btn.disabled = false;
-      btn.textContent = 'Fetch';
+      btn.textContent = t('action.fetch');
+    }
+
+    // Placeholder shown when a thumbnail URL is present but the image fails to
+    // load (broken/blocked link). Marked with the "no image" label.
+    function noImageThumb() {
+      return `<div class="no-thumb no-image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="8" cy="8" r="1.5"/><path d="m21 15-5-5L5 21"/><line x1="2" y1="2" x2="22" y2="22"/></svg><span>${esc(t('card.noImage'))}</span></div>`;
     }
 
     function renderCard(idx) {
@@ -552,7 +1017,7 @@
             </div>
           </div>
           <div class="card-body">
-            <div class="card-title" style="color:var(--error)">Could not fetch video</div>
+            <div class="card-title" style="color:var(--error)">${esc(t('card.fetchFailed'))}</div>
             <div class="card-error-msg">${esc(friendlyError(c.error || ''))}</div>
             <div class="card-error-url">${esc(c.url)}</div>
           </div>
@@ -568,7 +1033,7 @@
       if (isAudio) {
         thumbHtml = `<div class="no-thumb" style="color:var(--accent)"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>`;
       } else if (c.thumbnail) {
-        thumbHtml = `<img src="${c.thumbnail}" alt="">`;
+        thumbHtml = `<img src="/api/thumb?u=${encodeURIComponent(c.thumbnail)}" alt="" referrerpolicy="no-referrer" onerror="this.onerror=null;this.outerHTML=noImageThumb()">`;
       } else {
         thumbHtml = `<div class="no-thumb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="8" cy="8" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>`;
       }
@@ -580,24 +1045,35 @@
         ).join('');
       }
 
+      let nameInputHtml = '';
+      let rangeHtml = '';
       let actionHtml = '';
       if (c.status === 'ready') {
-        actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">Download</button>${qualityChips}`;
+        nameInputHtml = `<input class="name-input" id="name-${idx}" placeholder="${esc(t('card.namePlaceholder'))}" value="${esc(c.name || '')}" oninput="cardData[${idx}].name=this.value" onkeydown="if(event.key==='Enter')dlCard(${idx})">`;
+        rangeHtml = `<div class="range-row">
+            <input class="range-input" id="start-${idx}" placeholder="${esc(t('card.startPlaceholder'))}" value="${esc(c.tStart || '')}" oninput="cardData[${idx}].tStart=this.value">
+            <span class="range-sep">–</span>
+            <input class="range-input" id="end-${idx}" placeholder="${esc(t('card.endPlaceholder'))}" value="${esc(c.tEnd || '')}" oninput="cardData[${idx}].tEnd=this.value">
+          </div>
+          ${c.duration ? `<p class="range-total">${esc(t('card.fullLength', { d: fmtDur(c.duration) }))}</p>` : ''}`;
+        actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">${esc(t('action.download'))}</button>${qualityChips}`;
       } else if (c.status === 'downloading') {
-        actionHtml = `<span class="card-status downloading"><span class="spin"></span> Downloading...</span>`;
+        actionHtml = `<span class="card-status downloading"><span class="spin"></span> ${esc(t('card.downloading'))}</span>`;
       } else if (c.status === 'done') {
-        actionHtml = `<button class="card-dl-btn done" onclick="saveCard(${idx})">Save</button>
+        actionHtml = `<button class="card-dl-btn done" onclick="saveCard(${idx})">${esc(t('action.save'))}</button>
           <span class="card-status done">${esc(c.filename || '')}</span>`;
       } else if (c.status === 'error') {
-        actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">Retry</button>
-          <span class="card-status error">${esc(friendlyError(c.error || 'Download failed'))}</span>`;
+        actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">${esc(t('action.retry'))}</button>
+          <span class="card-status error">${esc(friendlyError(c.error) || t('card.downloadFailed'))}</span>`;
       }
 
       el.innerHTML = `
         <div class="card-thumb">${thumbHtml}</div>
         <div class="card-body">
-          <div class="card-title">${esc(c.title || 'Untitled')}</div>
+          <div class="card-title">${esc(c.title || t('card.untitled'))}</div>
           <div class="card-meta">${esc(c.uploader)}${c.duration ? ' · ' + fmtDur(c.duration) : ''}</div>
+          ${nameInputHtml}
+          ${rangeHtml}
           <div class="card-actions">${actionHtml}</div>
         </div>
       `;
@@ -610,7 +1086,7 @@
       const bar = document.createElement('div');
       bar.id = 'dl-all-bar';
       bar.className = 'dl-all-bar';
-      bar.innerHTML = `<button class="dl-all-btn" onclick="dlAll()">Download All</button>`;
+      bar.innerHTML = `<button class="dl-all-btn" onclick="dlAll()">${esc(t('action.downloadAll'))}</button>`;
       document.getElementById('cards').appendChild(bar);
     }
 
@@ -621,9 +1097,9 @@
 
     async function dlCard(idx) {
       const c = cardData[idx];
-      c.status = 'downloading';
-      c.error = null;
-      renderCard(idx);
+      const customName = document.getElementById(`name-${idx}`)?.value.trim() || '';
+      const tStart = cardData[idx]?.tStart?.trim() || '';
+      const tEnd = cardData[idx]?.tEnd?.trim() || '';
 
       try {
         const res = await fetch('/api/download', {
@@ -634,6 +1110,10 @@
             format: currentFormat,
             format_id: c.selectedFormatId,
             title: c.title || '',
+            filename: customName,
+            start: tStart,
+            end: tEnd,
+            duration: Number(c.duration) || 0,
           }),
         });
         const data = await res.json();
@@ -643,8 +1123,10 @@
           renderCard(idx);
           return;
         }
-        c.jobId = data.job_id;
-        pollCard(idx);
+        // Download accepted — the task now lives in the Downloads panel;
+        // remove the preview card.
+        cardData.splice(idx, 1);
+        rerenderCards();
       } catch (err) {
         c.status = 'error';
         c.error = err.message;
@@ -652,31 +1134,14 @@
       }
     }
 
-    function pollCard(idx) {
-      const c = cardData[idx];
-      const iv = setInterval(async () => {
-        try {
-          const res = await fetch(`/api/status/${c.jobId}`);
-          const data = await res.json();
-          if (data.status === 'done') {
-            clearInterval(iv);
-            c.status = 'done';
-            c.filename = data.filename;
-            renderCard(idx);
-            saveCard(idx);
-          } else if (data.status === 'error') {
-            clearInterval(iv);
-            c.status = 'error';
-            c.error = data.error;
-            renderCard(idx);
-          }
-        } catch {
-          clearInterval(iv);
-          c.status = 'error';
-          c.error = 'Lost connection to server';
-          renderCard(idx);
-        }
-      }, 1000);
+    // Rebuild every preview card (element ids are index-based, so re-render
+    // all after a card is removed).
+    function rerenderCards() {
+      document.getElementById('cards').innerHTML = '';
+      cardData.forEach((_, i) => renderCard(i));
+      const bar = document.getElementById('dl-all-bar');
+      if (bar) bar.remove();
+      if (cardData.filter(c => c.status === 'ready').length > 1) renderDownloadAll();
     }
 
     function saveCard(idx) {
@@ -690,16 +1155,187 @@
 
     async function dlAll() {
       const btn = document.querySelector('.dl-all-btn');
-      if (btn) { btn.disabled = true; btn.textContent = 'Downloading...'; }
-
-      for (let i = 0; i < cardData.length; i++) {
-        if (cardData[i].status === 'ready') {
-          await dlCard(i);
-        }
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = t('action.downloadAllBusy');
       }
 
-      if (btn) { btn.disabled = false; btn.textContent = 'Download All'; }
+      // dlCard splices items out of cardData, so consume ready cards until none remain.
+      while (true) {
+        const idx = cardData.findIndex(c => c.status === 'ready');
+        if (idx < 0) break;
+        await dlCard(idx);
+      }
+
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = t('action.downloadAll');
+      }
     }
+
+    // --- Save directory settings ---
+    async function saveSettingsDir() {
+      const dir = document.getElementById('dirInput').value.trim();
+      if (!dir) return;
+      try {
+        const res = await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dir }),
+        });
+        const data = await res.json();
+        if (data.error) { alert(data.error); return; }
+        document.getElementById('dirInput').value = data.dir;
+      } catch { /* ignore */ }
+    }
+
+    async function saveDefaultResolution() {
+      const resolution = document.getElementById('resSelect').value;
+      try {
+        const res = await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resolution }),
+        });
+        const data = await res.json();
+        if (data.error) { alert(data.error); return; }
+        document.getElementById('resSelect').value = data.resolution || resolution;
+      } catch { /* ignore */ }
+    }
+
+    async function loadSettingsDir() {
+      try {
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+        if (data.dir) document.getElementById('dirInput').value = data.dir;
+        const sel = document.getElementById('resSelect');
+        if (data.resolution && [...sel.options].some(o => o.value === data.resolution)) {
+          sel.value = data.resolution;
+        }
+        const cs = document.getElementById('codecSelect');
+        if (data.codec && [...cs.options].some(o => o.value === data.codec)) {
+          cs.value = data.codec;
+        }
+      } catch { /* ignore */ }
+    }
+
+    async function saveCodec() {
+      const codec = document.getElementById('codecSelect').value;
+      try {
+        const res = await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ codec }),
+        });
+        const data = await res.json();
+        if (data.error) { alert(data.error); return; }
+        document.getElementById('codecSelect').value = data.codec || codec;
+      } catch { /* ignore */ }
+    }
+
+    // --- Downloads manager panel ---
+    function jobSave(id, filename) {
+      const a = document.createElement('a');
+      a.href = `/api/file/${id}`;
+      a.download = filename || '';
+      a.click();
+    }
+
+    async function jobRemove(id) {
+      await fetch('/api/job/' + id, { method: 'DELETE' });
+      refreshJobs();
+    }
+
+    function renderJobs(list) {
+      const sec = document.getElementById('jobsSection');
+      const box = document.getElementById('jobsList');
+      lastJobs = list || [];
+      document.getElementById('jobsCount').textContent = String(lastJobs.length);
+      sec.hidden = lastJobs.length === 0;
+      box.innerHTML = lastJobs.map(j => {
+        const pct = Math.max(0, Math.min(100, Math.round(j.progress || 0)));
+        let badge = `<span class="badge ${esc(j.status)}">${esc(statusLabel(j.status))}</span>`;
+        let buttons = '';
+        let sub = '';
+        if (j.status === 'downloading') {
+          buttons = `<button class="job-btn danger" onclick="jobRemove('${j.id}')">${esc(t('action.cancel'))}</button>`;
+          sub = `<span class="card-status downloading"><span class="spin"></span> ${pct}%</span>`;
+        } else if (j.status === 'done') {
+          buttons = `<button class="job-btn save" onclick="jobSave('${j.id}','${esc(j.filename)}')">${esc(t('action.save'))}</button>
+                     <button class="job-btn danger" onclick="jobRemove('${j.id}')">${esc(t('action.remove'))}</button>`;
+          sub = `<span class="job-filename">${esc(j.filename || '')}</span>`;
+        } else {
+          buttons = `<button class="job-btn danger" onclick="jobRemove('${j.id}')">${esc(t('action.remove'))}</button>`;
+          sub = `<span class="job-error">${esc(friendlyError(j.error) || t('card.downloadFailed'))}</span>`;
+        }
+        const track = j.status === 'downloading'
+          ? `<div class="job-track"><div class="job-fill" style="width:${pct}%"></div></div>`
+          : '';
+        const title = j.title ? esc(j.title) : esc(j.url);
+        return `<div class="job">
+          <div class="job-top">
+            <span class="job-title" title="${esc(j.url)}">${title}</span>
+            ${badge}
+          </div>
+          ${track}
+          <div class="job-sub">${sub}<span class="job-btns">${buttons}</span></div>
+        </div>`;
+      }).join('');
+    }
+
+    async function refreshJobs() {
+      try {
+        const res = await fetch('/api/jobs');
+        const data = await res.json();
+        if (data.jobs) renderJobs(data.jobs);
+      } catch { /* ignore */ }
+    }
+
+    applyStatic();
+    loadSettingsDir();
+
+    // Push-based job updates via Server-Sent Events (no polling). EventSource
+    // reconnects on its own, so an error must NOT close it — we only run a 2s
+    // poll as a safety net until the stream comes back.
+    let jobsTimer = null;
+    function startJobsPolling() {
+      if (jobsTimer) return;
+      jobsTimer = setInterval(refreshJobs, 2000);
+    }
+    function stopJobsPolling() {
+      if (!jobsTimer) return;
+      clearInterval(jobsTimer);
+      jobsTimer = null;
+    }
+    try {
+      const es = new EventSource('/api/events');
+      es.onopen = () => stopJobsPolling();
+      es.onmessage = (e) => {
+        try {
+          const d = JSON.parse(e.data);
+          if (d.jobs) renderJobs(d.jobs);
+        } catch { /* ignore malformed */ }
+      };
+      es.onerror = () => startJobsPolling();
+    } catch (e) {
+      startJobsPolling();
+    }
+    // Re-sync when the tab comes back: suspended timers can miss updates.
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) refreshJobs();
+    });
+
+    // Pre-fill from the ReClip extension: ?url=... [&format=audio]
+    (function () {
+      const params = new URLSearchParams(location.search);
+      const u = params.get('url');
+      if (u) document.getElementById('urls').value = u;
+      if (params.get('format') === 'audio') {
+        const pill = document.querySelector('.pill[data-format="audio"]');
+        if (pill) setFormat(pill);
+      }
+      if (u) go();
+    })();
   </script>
 </body>
 </html>
