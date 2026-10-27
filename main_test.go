@@ -1256,3 +1256,23 @@ func TestRunPostprocessSkipsReencodeForHEVC(t *testing.T) {
 		t.Errorf("file shrank to %.0f%% of the source — the shortcut did not skip the encode", ratio*100)
 	}
 }
+
+// TestSettingsExposesVersion guards the -ldflags -X targets: if the vars go
+// missing again, the build silently loses its version and this fails.
+func TestSettingsExposesVersion(t *testing.T) {
+	w := httptest.NewRecorder()
+	handleSettings(w, httptest.NewRequest(http.MethodGet, "/api/settings", nil))
+	var view map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &view); err != nil {
+		t.Fatalf("GET settings not JSON: %v", err)
+	}
+	if view["version"] != version {
+		t.Errorf("GET version = %v, want %q", view["version"], version)
+	}
+	if view["commit"] != commit {
+		t.Errorf("GET commit = %v, want %q", view["commit"], commit)
+	}
+	if version == "" {
+		t.Error("version must never be empty")
+	}
+}

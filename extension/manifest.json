@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ReClip Companion",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "右键视频链接或页面，一键发送到本地 ReClip 服务器下载；点击图标可从当前页快速发起下载。",
   "permissions": ["contextMenus", "storage", "tabs"],
   "host_permissions": ["http://127.0.0.1/*", "http://localhost/*"],

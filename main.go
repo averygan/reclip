@@ -77,6 +77,12 @@ var (
 	resolution  string // preferred height for the auto-selected quality, e.g. "720p"
 	codec       string // video codec policy: copy | h265
 
+	// Stamped by the linker: -ldflags "-X main.version=... -X main.commit=...".
+	// These declarations must exist or the -X flags are silently ignored and the
+	// binary cannot report which release it is.
+	version = "dev"
+	commit  = "unknown"
+
 	settingsMu sync.RWMutex
 
 	jobsMu sync.RWMutex
@@ -352,7 +358,7 @@ func main() {
 	}
 
 	addr := host + ":" + port
-	log.Printf("ReClip is running at http://%s", addr)
+	log.Printf("ReClip %s (%s) is running at http://%s", version, commit, addr)
 	log.Fatal(http.ListenAndServe(addr, withCORS(mux)))
 }
 
@@ -1695,6 +1701,8 @@ func handleSettings(w http.ResponseWriter, r *http.Request) {
 			"ffmpeg":     getFfmpegPath(),
 			"resolution": getResolution(),
 			"codec":      getCodec(),
+			"version":    version,
+			"commit":     commit,
 		})
 	case http.MethodPost, http.MethodPut:
 		var req struct {

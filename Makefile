@@ -2,6 +2,9 @@ SINGLETON = reclip
 COMMANDS  =
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+# Strip the leading 'v' from a git tag (v1.0.2 -> 1.0.2) so the app and the
+# artifact names report the bare semver the user sees.
+VERSION := $(VERSION:v%=%)
 COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 LDFLAGS = -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT)
 
@@ -26,7 +29,7 @@ TARGETS = darwin-arm64 darwin-amd64 linux-arm64 linux-amd64 windows-amd64
 .PHONY: one all build clean upx upxx release $(BINFILES)
 
 one:
-	@echo "Compile one ($(GOOS)/$(GOARCH), v=$(VERSION))..."
+	@echo "Compile one ($(GOOS)/$(GOARCH), $(VERSION))..."
 ifneq ($(SINGLETON),)
 		CGO_ENABLED=1 $(GOBUILD) -o ./bin/$(SINGLETON) ./
 		fyne package --release --os darwin  --icon ./assets/icon.png --exe ./bin/$(SINGLETON)
@@ -43,7 +46,7 @@ build: $(BINFILES)
 	@echo "✅ Build success."
 
 $(SINGLETON):
-	@echo "Compile $@ (v=$(VERSION))..."
+	@echo "Compile $@ ($(VERSION))..."
 	@for target in $(TARGETS); do \
 		os=$${target%-*}; \
 		arch=$${target#*-}; \
@@ -52,7 +55,7 @@ $(SINGLETON):
 	done
 
 $(COMMANDS):
-	@echo "Compile $@ (v=$(VERSION))..."
+	@echo "Compile $@ ($(VERSION))..."
 	@for target in $(TARGETS); do \
 		os=$${target%-*}; \
 		arch=$${target#*-}; \
