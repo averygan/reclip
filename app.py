@@ -2,15 +2,115 @@ import os
 import uuid
 import glob
 import json
+import time
+import ipaddress
 import subprocess
 import threading
+import urllib.parse
+import urllib.request
 from flask import Flask, request, jsonify, send_file, render_template
 
 app = Flask(__name__)
 DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
+HISTORY_FILE = os.path.join(DOWNLOAD_DIR, "history.json")
+HISTORY_LIMIT = 200
+_history_lock = threading.Lock()
+
 jobs = {}
+
+
+def _read_history():
+    try:
+        with open(HISTORY_FILE, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data if isinstance(data, list) else []
+    except (OSError, ValueError):
+        return []
+
+
+def _write_history(entries):
+    tmp = HISTORY_FILE + ".tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(entries, fh, ensure_ascii=False, indent=2)
+        os.replace(tmp, HISTORY_FILE)
+    except OSError:
+        pass
+
+
+def load_history():
+    with _history_lock:
+        return _read_history()
+
+
+def add_history_entry(entry):
+    """Persist a completed download, newest first, capped at HISTORY_LIMIT."""
+    with _history_lock:
+        entries = [e for e in _read_history() if e.get("id") != entry["id"]]
+        entries.insert(0, entry)
+        _write_history(entries[:HISTORY_LIMIT])
+
+
+def find_history_entry(entry_id):
+    for entry in load_history():
+        if entry.get("id") == entry_id:
+            return entry
+    return None
+
+
+def _is_public_http_url(url):
+    """Only fetch thumbnails from normal public http(s) hosts."""
+    try:
+        parsed = urllib.parse.urlsplit(url)
+        if parsed.scheme not in ("http", "https") or not parsed.hostname:
+            return False
+        host = parsed.hostname.lower()
+        if host == "localhost" or host.endswith(".localhost"):
+            return False
+        try:
+            ip = ipaddress.ip_address(host)
+        except ValueError:
+            return True
+        return not (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        )
+    except ValueError:
+        return False
+
+
+def cache_thumbnail(job_id, url):
+    """Copy the remote thumbnail into the downloads volume so it survives."""
+    if not url or not _is_public_http_url(url):
+        return None
+    try:
+        req = urllib.request.Request(
+            url, headers={"User-Agent": "Mozilla/5.0 (ReClip thumbnail cache)"}
+        )
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            if not _is_public_http_url(resp.geturl()):
+                return None
+            content_type = (resp.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+            data = resp.read(5 * 1024 * 1024)
+        ext = {
+            "image/webp": ".webp",
+            "image/png": ".png",
+            "image/gif": ".gif",
+            "image/jpeg": ".jpg",
+            "image/jpg": ".jpg",
+        }.get(content_type, ".jpg")
+        name = f"{job_id}-thumb{ext}"
+        with open(os.path.join(DOWNLOAD_DIR, name), "wb") as fh:
+            fh.write(data)
+        return name
+    except Exception:
+        return None
 
 
 def parse_ytdlp_json(stdout):
@@ -71,7 +171,6 @@ def run_download(job_id, url, format_choice, format_id):
                 except OSError:
                     pass
 
-        job["status"] = "done"
         job["file"] = chosen
         ext = os.path.splitext(chosen)[1]
         title = job.get("title", "").strip()
@@ -81,6 +180,31 @@ def run_download(job_id, url, format_choice, format_id):
             job["filename"] = f"{safe_title}{ext}" if safe_title else os.path.basename(chosen)
         else:
             job["filename"] = os.path.basename(chosen)
+
+        thumb = cache_thumbnail(job_id, job.get("thumbnail", ""))
+        job["thumb"] = thumb
+
+        try:
+            size = os.path.getsize(chosen)
+        except OSError:
+            size = None
+
+        add_history_entry({
+            "id": job_id,
+            "title": title or os.path.splitext(job["filename"])[0],
+            "url": url,
+            "uploader": job.get("uploader", ""),
+            "duration": job.get("duration"),
+            "format": "audio" if format_choice == "audio" else "video",
+            "filename": job["filename"],
+            "file": os.path.basename(chosen),
+            "thumb": thumb,
+            "thumbnail": job.get("thumbnail", ""),
+            "size": size,
+            "created_at": int(time.time()),
+        })
+
+        job["status"] = "done"
     except subprocess.TimeoutExpired:
         job["status"] = "error"
         job["error"] = "Download timed out (5 min limit)"
@@ -170,12 +294,22 @@ def start_download():
     format_choice = data.get("format", "video")
     format_id = data.get("format_id")
     title = data.get("title", "")
+    uploader = data.get("uploader", "")
+    duration = data.get("duration")
+    thumbnail = data.get("thumbnail", "")
 
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
     job_id = uuid.uuid4().hex[:10]
-    jobs[job_id] = {"status": "downloading", "url": url, "title": title}
+    jobs[job_id] = {
+        "status": "downloading",
+        "url": url,
+        "title": title if isinstance(title, str) else "",
+        "uploader": uploader if isinstance(uploader, str) else "",
+        "duration": duration if isinstance(duration, (int, float)) else None,
+        "thumbnail": thumbnail if isinstance(thumbnail, str) else "",
+    }
 
     thread = threading.Thread(target=run_download, args=(job_id, url, format_choice, format_id))
     thread.daemon = True
@@ -196,12 +330,46 @@ def check_status(job_id):
     })
 
 
+@app.route("/api/history")
+def get_history():
+    items = []
+    for entry in load_history():
+        item = dict(entry)
+        file_name = os.path.basename(item.get("file") or "")
+        thumb_name = os.path.basename(item.get("thumb") or "")
+        item["available"] = bool(file_name) and os.path.isfile(os.path.join(DOWNLOAD_DIR, file_name))
+        item["has_thumb"] = bool(thumb_name) and os.path.isfile(os.path.join(DOWNLOAD_DIR, thumb_name))
+        items.append(item)
+    return jsonify({"items": items})
+
+
+@app.route("/api/thumb/<entry_id>")
+def get_thumb(entry_id):
+    job = jobs.get(entry_id) or {}
+    entry = find_history_entry(entry_id) or {}
+    thumb = job.get("thumb") or entry.get("thumb")
+    if not thumb:
+        return jsonify({"error": "No thumbnail"}), 404
+    path = os.path.join(DOWNLOAD_DIR, os.path.basename(thumb))
+    if not os.path.isfile(path):
+        return jsonify({"error": "No thumbnail"}), 404
+    return send_file(path, max_age=86400)
+
+
 @app.route("/api/file/<job_id>")
 def download_file(job_id):
     job = jobs.get(job_id)
-    if not job or job["status"] != "done":
-        return jsonify({"error": "File not ready"}), 404
-    return send_file(job["file"], as_attachment=True, download_name=job["filename"])
+    if job and job.get("status") == "done" and os.path.isfile(job.get("file", "")):
+        return send_file(job["file"], as_attachment=True, download_name=job.get("filename"))
+
+    entry = find_history_entry(job_id)
+    if entry:
+        file_name = os.path.basename(entry.get("file") or "")
+        path = os.path.join(DOWNLOAD_DIR, file_name)
+        if file_name and os.path.isfile(path):
+            return send_file(path, as_attachment=True, download_name=entry.get("filename"))
+
+    return jsonify({"error": "File not ready"}), 404
 
 
 if __name__ == "__main__":

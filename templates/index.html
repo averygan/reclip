@@ -3,30 +3,43 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#121110">
   <title>ReClip — Free Media Downloader</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #f4f1eb;
-      --fg: #3a3a38;
-      --accent: #e85d2a;
-      --accent-hover: #d04e1f;
-      --muted: #9c9889;
-      --card: #fff;
-      --card-border: #e2ded6;
-      --success: #2d8a4e;
-      --error: #c43d3d;
+      --bg: #121110;
+      --fg: #ece7de;
+      --fg-strong: #ffffff;
+      --accent: #f2703c;
+      --accent-hover: #ff8756;
+      --accent-soft: rgba(242, 112, 60, 0.12);
+      --muted: #8d887c;
+      --card: #1a1916;
+      --card-hover: #1f1e1a;
+      --card-border: #2e2b25;
+      --border-strong: #3f3a31;
+      --success: #63c98a;
+      --error: #f07777;
       --radius: 14px;
-      --shimmer: linear-gradient(90deg, #ebe8e2 25%, #f0ede7 50%, #ebe8e2 75%);
+      --shimmer: linear-gradient(90deg, #201f1b 25%, #2a2822 50%, #201f1b 75%);
+      color-scheme: dark;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
+    ::selection { background: var(--accent); color: #1a0d06; }
+
+    html { scrollbar-color: var(--border-strong) transparent; }
+
     body {
       font-family: 'DM Mono', monospace;
-      background: var(--bg);
+      background:
+        radial-gradient(820px 460px at 50% -8%, rgba(242, 112, 60, 0.1), transparent 68%),
+        var(--bg);
       color: var(--fg);
       min-height: 100vh;
       overflow-x: hidden;
@@ -36,16 +49,19 @@
       content: '';
       position: fixed;
       inset: 0;
-      opacity: 0.03;
+      opacity: 0.035;
       pointer-events: none;
       background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
       background-size: 128px;
+      mix-blend-mode: soft-light;
     }
 
     .page {
-      max-width: 620px;
+      max-width: 640px;
       margin: 0 auto;
       padding: 60px 24px 80px;
+      position: relative;
+      z-index: 1;
     }
 
     .brand { margin-bottom: 48px; }
@@ -55,14 +71,14 @@
       font-weight: 400;
       letter-spacing: -0.03em;
       line-height: 1;
-      color: var(--fg);
+      color: var(--fg-strong);
     }
     .brand h1 em { font-style: italic; color: var(--accent); }
     .brand p {
       margin-top: 10px;
       font-size: 0.78rem;
       color: var(--muted);
-      letter-spacing: 0.04em;
+      letter-spacing: 0.14em;
       text-transform: uppercase;
     }
 
@@ -78,12 +94,14 @@
       outline: none;
       resize: none;
       min-height: 56px;
-      transition: border-color 0.25s, box-shadow 0.25s;
+      transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
       margin-bottom: 6px;
+      caret-color: var(--accent);
     }
     textarea:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(232, 93, 42, 0.08);
+      background: #1d1c18;
+      box-shadow: 0 0 0 3px var(--accent-soft);
     }
     textarea::placeholder { color: var(--muted); }
 
@@ -119,8 +137,8 @@
       letter-spacing: 0.03em;
       text-transform: uppercase;
     }
-    .pill.active { background: var(--fg); color: var(--bg); }
-    .pill:not(.active):hover { color: var(--fg); }
+    .pill.active { background: var(--fg); color: #171512; }
+    .pill:not(.active):hover { color: var(--fg); background: rgba(255, 255, 255, 0.03); }
 
     .fetch-btn {
       flex: 1;
@@ -128,7 +146,7 @@
       border: none;
       border-radius: 10px;
       background: var(--accent);
-      color: #fff;
+      color: #201007;
       font-family: 'DM Mono', monospace;
       font-size: 0.82rem;
       font-weight: 500;
@@ -165,7 +183,7 @@
       height: 80px;
       border-radius: 8px;
       overflow: hidden;
-      background: var(--card-border);
+      background: #26241f;
       flex-shrink: 0;
       position: relative;
     }
@@ -187,7 +205,7 @@
     .card-thumb .no-thumb svg {
       width: 28px;
       height: 28px;
-      opacity: 0.5;
+      opacity: 0.55;
     }
 
     /* Shimmer skeleton for loading state */
@@ -248,7 +266,7 @@
       border: none;
       border-radius: 7px;
       background: var(--fg);
-      color: var(--bg);
+      color: #171512;
       font-family: 'DM Mono', monospace;
       font-size: 0.7rem;
       font-weight: 500;
@@ -257,10 +275,10 @@
       letter-spacing: 0.03em;
       text-transform: uppercase;
     }
-    .card-dl-btn:hover { background: #2d2d2a; }
+    .card-dl-btn:hover { background: var(--fg-strong); }
     .card-dl-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .card-dl-btn.done { background: var(--success); color: #fff; }
-    .card-dl-btn.error { background: var(--error); color: #fff; }
+    .card-dl-btn.done { background: var(--success); color: #0d1a12; }
+    .card-dl-btn.error { background: var(--error); color: #1a0b0b; }
 
     .card-status {
       font-size: 0.68rem;
@@ -284,14 +302,14 @@
     .q-chip.active {
       border-color: var(--fg);
       color: var(--fg);
-      background: rgba(26,26,24,0.04);
+      background: rgba(236, 231, 222, 0.07);
     }
-    .q-chip:hover:not(.active) { border-color: var(--muted); }
+    .q-chip:hover:not(.active) { border-color: var(--muted); color: var(--fg); }
 
     /* Error card */
     .card.card-error {
-      border-color: rgba(196, 61, 61, 0.2);
-      background: rgba(196, 61, 61, 0.03);
+      border-color: rgba(240, 119, 119, 0.24);
+      background: rgba(240, 119, 119, 0.04);
     }
     .card-error-icon {
       width: 100%;
@@ -299,7 +317,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(196, 61, 61, 0.08);
+      background: rgba(240, 119, 119, 0.09);
       color: var(--error);
     }
     .card-error-icon svg {
@@ -331,7 +349,7 @@
       border: none;
       border-radius: 10px;
       background: var(--fg);
-      color: var(--bg);
+      color: #171512;
       font-family: 'DM Mono', monospace;
       font-size: 0.82rem;
       font-weight: 500;
@@ -340,8 +358,145 @@
       letter-spacing: 0.04em;
       text-transform: uppercase;
     }
-    .dl-all-btn:hover { background: #2d2d2a; }
+    .dl-all-btn:hover { background: var(--fg-strong); }
     .dl-all-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* History */
+    .history { margin-top: 44px; }
+
+    .history-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      border-top: 1px solid var(--card-border);
+      padding-top: 24px;
+      margin-bottom: 14px;
+    }
+    .history-head h2 {
+      font-family: 'Instrument Serif', serif;
+      font-size: 1.4rem;
+      font-weight: 400;
+      letter-spacing: -0.01em;
+      color: var(--fg-strong);
+    }
+    .history-head h2 em { font-style: italic; color: var(--accent); }
+    .history-count {
+      font-size: 0.62rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .history-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      background: var(--card);
+      padding: 9px 12px 9px 9px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .history-item:hover {
+      border-color: var(--border-strong);
+      background: var(--card-hover);
+    }
+
+    .history-thumb {
+      position: relative;
+      width: 84px;
+      min-width: 84px;
+      height: 52px;
+      border-radius: 7px;
+      overflow: hidden;
+      background: #26241f;
+      flex-shrink: 0;
+    }
+    .history-thumb .no-thumb {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+    }
+    .history-thumb .no-thumb svg { width: 20px; height: 20px; opacity: 0.5; }
+    .history-thumb img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .history-body { flex: 1; min-width: 0; }
+    .history-title {
+      font-size: 0.78rem;
+      line-height: 1.35;
+      color: var(--fg);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .history-meta {
+      margin-top: 3px;
+      font-size: 0.6rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .history-item.unavailable .history-title { color: var(--muted); }
+
+    .history-save {
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .history-save:hover {
+      color: var(--fg);
+      border-color: var(--border-strong);
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .history-save svg { width: 14px; height: 14px; }
+
+    .history-empty {
+      border: 1px dashed var(--card-border);
+      border-radius: 12px;
+      padding: 28px 18px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.72rem;
+      letter-spacing: 0.02em;
+      line-height: 1.7;
+    }
+    .history-empty svg {
+      width: 22px;
+      height: 22px;
+      opacity: 0.45;
+      display: block;
+      margin: 0 auto 8px;
+    }
 
     .spin {
       display: inline-block;
@@ -377,6 +532,9 @@
       .card-title { white-space: normal; }
       .controls { flex-wrap: wrap; }
       .fetch-btn { width: 100%; }
+      .history-thumb { width: 64px; min-width: 64px; height: 44px; }
+      .history-title { font-size: 0.73rem; }
+      .history-meta { font-size: 0.55rem; }
     }
   </style>
 </head>
@@ -400,6 +558,16 @@
 
     <div id="cards" class="cards"></div>
 
+    <section class="history">
+      <div class="history-head">
+        <h2>Recent <em>clips</em></h2>
+        <span class="history-count" id="historyCount"></span>
+      </div>
+      <div id="history" class="history-list">
+        <div class="history-empty">Loading history…</div>
+      </div>
+    </section>
+
     <div class="footer">
       YouTube &middot; TikTok &middot; Instagram &middot; Twitter/X &middot; Reddit &middot; Facebook<br>
       Vimeo &middot; Twitch &middot; Dailymotion &middot; SoundCloud &middot; Loom &middot; Streamable<br>
@@ -410,6 +578,7 @@
   <script>
     let currentFormat = 'video';
     let cardData = [];
+    let historyItems = [];
 
     function setFormat(btn) {
       document.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
@@ -428,10 +597,37 @@
       return `${m}:${sec.toString().padStart(2, '0')}`;
     }
 
+    function fmtSize(bytes) {
+      if (!bytes && bytes !== 0) return '';
+      const units = ['B', 'KB', 'MB', 'GB'];
+      let value = bytes;
+      let i = 0;
+      while (value >= 1024 && i < units.length - 1) { value /= 1024; i++; }
+      return `${value >= 10 || i === 0 ? Math.round(value) : value.toFixed(1)} ${units[i]}`;
+    }
+
+    function fmtDate(ts) {
+      if (!ts) return '';
+      const d = new Date(ts * 1000);
+      const now = new Date();
+      const startOf = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+      const day = 86400000;
+      if (startOf(d) === startOf(now)) return 'Today';
+      if (startOf(d) === startOf(now) - day) return 'Yesterday';
+      if (now.getTime() - d.getTime() < 7 * day) {
+        return d.toLocaleDateString(undefined, { weekday: 'short' });
+      }
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    }
+
     function esc(s) {
       const d = document.createElement('div');
-      d.textContent = s;
+      d.textContent = s == null ? '' : String(s);
       return d.innerHTML;
+    }
+
+    function escAttr(s) {
+      return esc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
     function friendlyError(err) {
@@ -568,7 +764,7 @@
       if (isAudio) {
         thumbHtml = `<div class="no-thumb" style="color:var(--accent)"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>`;
       } else if (c.thumbnail) {
-        thumbHtml = `<img src="${c.thumbnail}" alt="">`;
+        thumbHtml = `<img src="${escAttr(c.thumbnail)}" alt="">`;
       } else {
         thumbHtml = `<div class="no-thumb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="8" cy="8" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>`;
       }
@@ -576,7 +772,7 @@
       let qualityChips = '';
       if (!isAudio && c.formats && c.formats.length > 1) {
         qualityChips = c.formats.map(f =>
-          `<button class="q-chip${f.id === c.selectedFormatId ? ' active' : ''}" onclick="pickFormat(${idx}, '${f.id}')">${f.label}</button>`
+          `<button class="q-chip${f.id === c.selectedFormatId ? ' active' : ''}" onclick="pickFormat(${idx}, '${escAttr(f.id)}')">${esc(f.label)}</button>`
         ).join('');
       }
 
@@ -634,6 +830,9 @@
             format: currentFormat,
             format_id: c.selectedFormatId,
             title: c.title || '',
+            uploader: c.uploader || '',
+            duration: c.duration || null,
+            thumbnail: c.thumbnail || '',
           }),
         });
         const data = await res.json();
@@ -663,6 +862,7 @@
             c.status = 'done';
             c.filename = data.filename;
             renderCard(idx);
+            loadHistory();
             saveCard(idx);
           } else if (data.status === 'error') {
             clearInterval(iv);
@@ -700,6 +900,82 @@
 
       if (btn) { btn.disabled = false; btn.textContent = 'Download All'; }
     }
+
+    /* ---------- History ---------- */
+
+    async function loadHistory() {
+      try {
+        const res = await fetch('/api/history');
+        const data = await res.json();
+        historyItems = data.items || [];
+        renderHistory();
+      } catch {
+        /* Keep whatever is already rendered */
+      }
+    }
+
+    function historyThumb(item) {
+      if (item.has_thumb) return `/api/thumb/${item.id}`;
+      return item.thumbnail || '';
+    }
+
+    function renderHistory() {
+      const wrap = document.getElementById('history');
+      const count = document.getElementById('historyCount');
+      if (!wrap) return;
+
+      count.textContent = historyItems.length
+        ? `${historyItems.length} item${historyItems.length === 1 ? '' : 's'}`
+        : '';
+
+      if (!historyItems.length) {
+        wrap.innerHTML = `
+          <div class="history-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            Nothing downloaded yet.<br>Finished clips will show up here.
+          </div>`;
+        return;
+      }
+
+      wrap.innerHTML = historyItems.map(item => {
+        const thumb = historyThumb(item);
+        const meta = [
+          item.format === 'audio' ? 'MP3' : 'MP4',
+          fmtSize(item.size),
+          item.uploader,
+          fmtDate(item.created_at),
+        ].filter(Boolean).join(' · ');
+
+        const thumbHtml = thumb
+          ? `<img src="${escAttr(thumb)}" alt="" loading="lazy" onerror="this.remove()">`
+          : '';
+
+        return `
+          <div class="history-item${item.available ? '' : ' unavailable'}">
+            <div class="history-thumb">
+              <div class="no-thumb">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="8" cy="8" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+              </div>
+              ${thumbHtml}
+            </div>
+            <div class="history-body">
+              <div class="history-title" title="${escAttr(item.title || 'Untitled')}">${esc(item.title || 'Untitled')}</div>
+              <div class="history-meta">${esc(meta)}${item.available ? '' : ' · File removed'}</div>
+            </div>
+            ${item.available ? `<button class="history-save" onclick="saveHistory('${escAttr(item.id)}')" title="Save ${escAttr(item.filename || '')}" aria-label="Save download">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </button>` : ''}
+          </div>`;
+      }).join('');
+    }
+
+    function saveHistory(id) {
+      const a = document.createElement('a');
+      a.href = `/api/file/${id}`;
+      a.click();
+    }
+
+    loadHistory();
   </script>
 </body>
 </html>
