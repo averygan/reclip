@@ -37,6 +37,16 @@ Or with Docker:
 docker build -t reclip . && docker run -p 8899:8899 reclip
 ```
 
+### Private deployments
+
+Set `RECLIP_NOINDEX=1` to keep an instance out of search engines. It sends
+`X-Robots-Tag: noindex`, serves a disallow-all `/robots.txt`, and adds a robots
+meta tag to the page.
+
+```bash
+docker build -t reclip . && docker run -p 8899:8899 -e RECLIP_NOINDEX=1 reclip
+```
+
 ## Usage
 
 1. Paste one or more video URLs into the input box

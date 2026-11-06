@@ -14,6 +14,10 @@ app = Flask(__name__)
 DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
+# Opt-in for private deployments: keep search engines out of the app.
+NOINDEX = os.environ.get("RECLIP_NOINDEX", "").strip().lower() in {"1", "true", "yes", "on"}
+NOINDEX_HEADER = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
 HISTORY_FILE = os.path.join(DOWNLOAD_DIR, "history.json")
 HISTORY_LIMIT = 200
 _history_lock = threading.Lock()
@@ -213,9 +217,22 @@ def run_download(job_id, url, format_choice, format_id):
         job["error"] = str(e)
 
 
+@app.after_request
+def add_noindex_header(response):
+    if NOINDEX:
+        response.headers["X-Robots-Tag"] = NOINDEX_HEADER
+    return response
+
+
+@app.route("/robots.txt")
+def robots_txt():
+    rules = "User-agent: *\nDisallow: /\n" if NOINDEX else "User-agent: *\nAllow: /\n"
+    return rules, 200, {"Content-Type": "text/plain; charset=utf-8"}
+
+
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", noindex=NOINDEX)
 
 
 @app.route("/api/info", methods=["POST"])
