@@ -410,6 +410,8 @@
   <script>
     let currentFormat = 'video';
     let cardData = [];
+    let currentRunId = 0;
+    const pollers = new Map();
 
     function setFormat(btn) {
       document.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
@@ -451,19 +453,28 @@
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); go(); }
     });
 
+    function clearPollers() {
+      for (const iv of pollers.values()) clearInterval(iv);
+      pollers.clear();
+    }
+
     async function go() {
       const urls = parseUrls(document.getElementById('urls').value);
       if (!urls.length) return;
 
+      currentRunId += 1;
+      const runId = currentRunId;
       const btn = document.getElementById('goBtn');
       const container = document.getElementById('cards');
       btn.disabled = true;
       btn.textContent = 'Loading...';
+      clearPollers();
       container.innerHTML = '';
       cardData = [];
 
       // Check if youtube playlist URL
       for (let i = 0; i < urls.length; i++) {
+        if (runId !== currentRunId) return;
         if (urls[i].includes('list=')) {
           const res = await fetch('/api/playlist', {
             method: 'POST',
@@ -471,6 +482,7 @@
             body: JSON.stringify({ url: urls[i] }),
           });
           const data = await res.json();
+          if (runId !== currentRunId) return;
           if (data.urls) {
             // replace playlist URL with individual video URLs
             urls.splice(i, 1, ...data.urls);
@@ -478,12 +490,14 @@
         }
       }
 
-      for (let i = 0; i < urls.length; i++) {
-        const url = urls[i];
-        const idx = cardData.length;
-        cardData.push({ url, status: 'loading' });
-        renderCard(idx);
+      if (runId !== currentRunId) return;
 
+      cardData = urls.map(url => ({ url, status: 'loading' }));
+      for (let i = 0; i < cardData.length; i++) {
+        renderCard(i);
+      }
+
+      await Promise.allSettled(urls.map(async (url, idx) => {
         try {
           const res = await fetch('/api/info', {
             method: 'POST',
@@ -491,6 +505,7 @@
             body: JSON.stringify({ url }),
           });
           const data = await res.json();
+          if (runId !== currentRunId) return;
           if (data.error) {
             cardData[idx] = { ...cardData[idx], status: 'info-error', error: data.error };
           } else {
@@ -506,10 +521,13 @@
             };
           }
         } catch (err) {
+          if (runId !== currentRunId) return;
           cardData[idx] = { ...cardData[idx], status: 'info-error', error: err.message };
         }
         renderCard(idx);
-      }
+      }));
+
+      if (runId !== currentRunId) return;
 
       if (cardData.filter(c => c.status === 'ready').length > 1) {
         renderDownloadAll();
@@ -654,29 +672,43 @@
 
     function pollCard(idx) {
       const c = cardData[idx];
+      const existing = pollers.get(idx);
+      if (existing) clearInterval(existing);
       const iv = setInterval(async () => {
         try {
           const res = await fetch(`/api/status/${c.jobId}`);
           const data = await res.json();
+          if (!res.ok || !data.status) {
+            clearInterval(iv);
+            pollers.delete(idx);
+            c.status = 'error';
+            c.error = data.error || 'Lost download state on server';
+            renderCard(idx);
+            return;
+          }
           if (data.status === 'done') {
             clearInterval(iv);
+            pollers.delete(idx);
             c.status = 'done';
             c.filename = data.filename;
             renderCard(idx);
             saveCard(idx);
           } else if (data.status === 'error') {
             clearInterval(iv);
+            pollers.delete(idx);
             c.status = 'error';
             c.error = data.error;
             renderCard(idx);
           }
         } catch {
           clearInterval(iv);
+          pollers.delete(idx);
           c.status = 'error';
           c.error = 'Lost connection to server';
           renderCard(idx);
         }
       }, 1000);
+      pollers.set(idx, iv);
     }
 
     function saveCard(idx) {

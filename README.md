@@ -2,7 +2,7 @@
 
 A self-hosted, open-source video and audio downloader with a clean web UI. Paste links from YouTube, TikTok, Instagram, Twitter/X, and 1000+ other sites — download as MP4 or MP3.
 
-![Python](https://img.shields.io/badge/python-3.8+-blue)
+![Python](https://img.shields.io/badge/python-3.10+-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 https://github.com/user-attachments/assets/419d3e50-c933-444b-8cab-a9724986ba05
@@ -22,13 +22,15 @@ https://github.com/user-attachments/assets/419d3e50-c933-444b-8cab-a9724986ba05
 ## Quick Start
 
 ```bash
-brew install yt-dlp ffmpeg    # or apt install ffmpeg && pip install yt-dlp
+brew install python deno ffmpeg
 git clone https://github.com/averygan/reclip.git
 cd reclip
 ./reclip.sh
 ```
 
 Open **http://localhost:8899**.
+
+The launcher installs Python dependencies into `venv`. Python 3.10+ and Deno are required; if your default Python is older, start with `PYTHON=/opt/homebrew/bin/python3 ./reclip.sh` on Apple Silicon Macs. The launcher also upgrades `yt-dlp` on startup. Set `RECLIP_NO_UPDATE=1` to skip that.
 
 Or with Docker:
 
