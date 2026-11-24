@@ -9,12 +9,12 @@ if ! command -v python3 &> /dev/null; then
     missing="$missing python3"
 fi
 
-if ! command -v yt-dlp &> /dev/null; then
-    missing="$missing yt-dlp"
-fi
-
 if ! command -v ffmpeg &> /dev/null; then
     missing="$missing ffmpeg"
+fi
+
+if ! command -v deno &> /dev/null; then
+    missing="$missing deno"
 fi
 
 if [ -n "$missing" ]; then
@@ -32,10 +32,15 @@ fi
 
 # Set up venv and install Python deps
 if [ ! -d "venv" ]; then
+    PYTHON="${PYTHON:-python3}"
+    if ! "$PYTHON" -c 'import sys; sys.exit(sys.version_info < (3, 10))' 2>/dev/null; then
+        echo "Python 3.10+ is required. Set PYTHON to a newer interpreter (e.g. PYTHON=/opt/homebrew/bin/python3 ./reclip.sh)."
+        exit 1
+    fi
     echo "Setting up virtual environment..."
-    python3 -m venv venv
+    "$PYTHON" -m venv venv
     source venv/bin/activate
-    pip install -q flask yt-dlp
+    python -m pip install -q -r requirements.txt
 else
     source venv/bin/activate
 fi
@@ -44,7 +49,7 @@ fi
 # frequently, and the usual fix is simply updating yt-dlp. Skip with RECLIP_NO_UPDATE=1.
 if [ -z "$RECLIP_NO_UPDATE" ]; then
     echo "Updating yt-dlp..."
-    pip install -q -U yt-dlp || echo "  (couldn't update yt-dlp — continuing with the installed version)"
+    python -m pip install -q -U 'yt-dlp[default]' || echo "  (couldn't update yt-dlp — continuing with the installed version)"
 fi
 
 PORT="${PORT:-8899}"
