@@ -44,6 +44,20 @@ docker build -t reclip . && docker run -p 8899:8899 reclip
 4. Select quality/resolution if available
 5. Click **Download** on individual videos, or **Download All**
 
+## Configuration
+
+All settings are optional environment variables:
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `RECLIP_DOWNLOAD_TIMEOUT` | `14400` | Max seconds per download (4 h). Fragmented HLS/DASH videos can take hours. |
+| `RECLIP_INFO_TIMEOUT` | `120` | Max seconds to fetch video metadata. |
+| `RECLIP_SOCKET_TIMEOUT` | `30` | yt-dlp socket timeout in seconds. |
+| `RECLIP_CONCURRENT_FRAGMENTS` | `8` | HLS/DASH fragments downloaded in parallel. |
+
+If a download fails, press **Retry**: the job is reused and the download resumes
+from the last fragment instead of starting from scratch.
+
 ## Supported Sites
 
 Anything [yt-dlp supports](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md), including:

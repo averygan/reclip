@@ -442,7 +442,7 @@
       if (err.includes('HTTP Error 404')) return 'Video not found';
       if (err.includes('copyright')) return 'Video blocked due to copyright';
       if (err.includes('geo')) return 'Video not available in your region';
-      if (err.includes('timed out') || err.includes('Timed out')) return 'Request timed out — try again';
+      if (err.includes('limit reached') || err.includes('timed out') || err.includes('Timed out')) return 'Download limit reached — tap Retry to resume';
       if (err.includes('network') || err.includes('Network')) return 'Network error — check your connection';
       return err.length > 80 ? err.slice(0, 80) + '...' : err;
     }
