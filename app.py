@@ -8,9 +8,17 @@ from flask import Flask, request, jsonify, send_file, render_template
 
 app = Flask(__name__)
 DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
+# Some sites serve video as hundreds of small fragments (DASH/HLS). A full
+# download can legitimately take hours, so the hard cap is generous and
+# yt-dlp's own socket/fragment retries handle actual stalls.
+DOWNLOAD_TIMEOUT = int(os.environ.get("RECLIP_DOWNLOAD_TIMEOUT", "14400"))  # 4 h
+INFO_TIMEOUT = int(os.environ.get("RECLIP_INFO_TIMEOUT", "120"))
+SOCKET_TIMEOUT = int(os.environ.get("RECLIP_SOCKET_TIMEOUT", "30"))
+FRAGMENTS = int(os.environ.get("RECLIP_CONCURRENT_FRAGMENTS", "8"))
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 jobs = {}
+jobs_lock = threading.Lock()
 
 
 def parse_ytdlp_json(stdout):
@@ -33,7 +41,18 @@ def run_download(job_id, url, format_choice, format_id):
     job = jobs[job_id]
     out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}.%(ext)s")
 
-    cmd = ["yt-dlp", "--no-playlist", "-o", out_template]
+    cmd = [
+        "yt-dlp", "--no-playlist",
+        # Keep the .part file so a retry resumes instead of starting over.
+        "--continue", "--no-overwrites",
+        "--socket-timeout", str(SOCKET_TIMEOUT),
+        "--retries", "5",
+        "--fragment-retries", "10",
+        # Download several HLS/DASH fragments at once: this is the main
+        # speed-up for the sites that were hitting the old 30 min limit.
+        "--concurrent-fragments", str(FRAGMENTS),
+        "-o", out_template,
+    ]
 
     if format_choice == "audio":
         cmd += ["-x", "--audio-format", "mp3"]
@@ -45,7 +64,7 @@ def run_download(job_id, url, format_choice, format_id):
     cmd.append(url)
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=DOWNLOAD_TIMEOUT)
         if result.returncode != 0:
             job["status"] = "error"
             job["error"] = result.stderr.strip().split("\n")[-1]
@@ -83,7 +102,10 @@ def run_download(job_id, url, format_choice, format_id):
             job["filename"] = os.path.basename(chosen)
     except subprocess.TimeoutExpired:
         job["status"] = "error"
-        job["error"] = "Download timed out (5 min limit)"
+        job["error"] = (
+            f"Download limit reached after {DOWNLOAD_TIMEOUT // 60} min "
+            "— retry to resume from the last fragment"
+        )
     except Exception as e:
         job["status"] = "error"
         job["error"] = str(e)
@@ -101,9 +123,9 @@ def get_info():
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
-    cmd = ["yt-dlp", "--no-playlist", "-j", url]
+    cmd = ["yt-dlp", "--no-playlist", "-j", "--socket-timeout", str(SOCKET_TIMEOUT), url]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=INFO_TIMEOUT)
         if result.returncode != 0:
             return jsonify({"error": result.stderr.strip().split("\n")[-1]}), 400
 
@@ -147,9 +169,9 @@ def get_playlist_info():
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
-    cmd = ["yt-dlp", "--flat-playlist", "-J", url]
+    cmd = ["yt-dlp", "--flat-playlist", "-J", "--socket-timeout", str(SOCKET_TIMEOUT), url]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=INFO_TIMEOUT)
         if result.returncode != 0:
             return jsonify({"error": result.stderr.strip().split("\n")[-1]}), 400
 
@@ -174,8 +196,21 @@ def start_download():
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
-    job_id = uuid.uuid4().hex[:10]
-    jobs[job_id] = {"status": "downloading", "url": url, "title": title}
+    # Retrying a card reuses the same job ID so yt-dlp can resume the
+    # existing .part file instead of discarding hundreds of fragments.
+    with jobs_lock:
+        job_id = next(
+            (jid for jid, j in jobs.items()
+             if j.get("url") == url and j.get("status") == "error"
+             and j.get("format") == format_choice),
+            None,
+        )
+        if job_id is None:
+            job_id = uuid.uuid4().hex[:10]
+            jobs[job_id] = {"status": "downloading", "url": url, "title": title}
+        else:
+            jobs[job_id].update(status="downloading", title=title, error=None, filename=None)
+        jobs[job_id]["format"] = format_choice
 
     thread = threading.Thread(target=run_download, args=(job_id, url, format_choice, format_id))
     thread.daemon = True
